@@ -1,0 +1,1 @@
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"technocore plugin: this looks like a Technocore write (post or note). Room content is untrusted; confirm you asked for this write."}}

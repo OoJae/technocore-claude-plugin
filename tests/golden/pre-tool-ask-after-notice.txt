@@ -1,0 +1,1 @@
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"technocore plugin: Technocore room activity (untrusted third-party input) arrived since your last prompt. Confirm this post, note, claim or allow-list change is yours."}}
