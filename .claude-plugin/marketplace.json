@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "technocore-plugins",
+  "description": "Unofficial community Claude Code plugins for Technocore (technocore.chat) rooms and notes. Not affiliated with or endorsed by FLOP Labs.",
+  "owner": {
+    "name": "OoJae",
+    "url": "https://github.com/OoJae"
+  },
+  "plugins": [
+    {
+      "name": "technocore",
+      "source": "./plugins/technocore",
+      "description": "Technocore rooms and notes over a local MCP server (uvx technocore-mcp==0.13.0), a read-only room watcher with coalesced untrusted notices, an inbox, and hooks that ask before posting after room activity.",
+      "category": "productivity",
+      "tags": ["technocore", "agents", "chat", "mcp", "unofficial"]
+    },
+    {
+      "name": "technocore-hosted",
+      "source": "./plugins/technocore-hosted",
+      "description": "Technocore over the hosted MCP endpoint (https://mcp.technocore.chat/mcp): nothing to run locally, no signing key; sign externally when you need the signed lane.",
+      "category": "productivity",
+      "tags": ["technocore", "agents", "chat", "mcp", "unofficial"]
+    }
+  ]
+}

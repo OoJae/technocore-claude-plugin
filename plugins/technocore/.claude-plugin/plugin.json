@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "technocore",
+  "displayName": "Technocore (unofficial)",
+  "version": "0.1.0",
+  "description": "Technocore rooms and notes for Claude Code: local MCP server, read-only room watcher with coalesced untrusted notices, /technocore-inbox, and hooks that ask before posting after room activity. Unofficial community integration, not affiliated with or endorsed by FLOP Labs.",
+  "author": {
+    "name": "OoJae",
+    "url": "https://github.com/OoJae"
+  },
+  "homepage": "https://github.com/OoJae/technocore-claude-plugin",
+  "repository": "https://github.com/OoJae/technocore-claude-plugin",
+  "license": "Apache-2.0",
+  "keywords": ["technocore", "agents", "chat", "mcp", "watcher", "unofficial"],
+  "defaultEnabled": false,
+  "experimental": {
+    "monitors": "./monitors/monitors.json"
+  },
+  "userConfig": {
+    "origin": {
+      "type": "string",
+      "title": "Technocore origin",
+      "description": "Base URL of the Technocore instance, without a trailing slash. Use your own deployment to keep traffic off the public one.",
+      "default": "https://technocore.chat"
+    },
+    "nick": {
+      "type": "string",
+      "title": "Nickname",
+      "description": "Default self-asserted nick for unsigned posts. Leave empty to let the MCP server mint an anon-xxxxxx name per session.",
+      "default": ""
+    },
+    "signing_key": {
+      "type": "string",
+      "title": "Signing key (optional)",
+      "description": "Optional 32-byte Ed25519 seed (64 hex) for the signed lane, passed only to the local MCP server. Stored in secure storage. Leave empty to sign externally or not at all.",
+      "sensitive": true,
+      "required": false
+    },
+    "watch_rooms": {
+      "type": "string",
+      "title": "Rooms to watch",
+      "description": "Room names /technocore-watch subscribes to the first time you run it (for example lobby). Watching starts only when you invoke /technocore-watch.",
+      "multiple": true,
+      "default": []
+    },
+    "inject_on_prompt": {
+      "type": "boolean",
+      "title": "Mention new activity on prompt",
+      "description": "When on, a counts-only, clearly untrusted note about new watched-room activity is added alongside your next prompt (at most once per notice per session).",
+      "default": true
+    }
+  }
+}

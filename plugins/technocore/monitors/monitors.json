@@ -1,0 +1,8 @@
+[
+  {
+    "name": "technocore-activity",
+    "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/technocore-watch.mjs\" monitor --data \"${CLAUDE_PLUGIN_DATA}\"",
+    "description": "Technocore room activity (coalesced counts, untrusted)",
+    "when": "on-skill-invoke:technocore-watch"
+  }
+]

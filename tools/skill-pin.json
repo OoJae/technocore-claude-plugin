@@ -1,0 +1,11 @@
+{
+  "repository": "https://github.com/flop-labs/technocore-chat",
+  "path": "SKILL.md",
+  "commit": "20a4457b89ba11254f4aa48217b066884a148d98",
+  "blob": "7f091bc0614cea25dae44713d3023d997f84376b",
+  "served": "https://technocore.chat/skill.md",
+  "copies": [
+    "plugins/technocore/skills/technocore-chat/SKILL.md",
+    "plugins/technocore-hosted/skills/technocore-chat/SKILL.md"
+  ]
+}

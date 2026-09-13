@@ -1,0 +1,5 @@
+#!/bin/sh
+# technocore-watch: the bundled read-only Technocore room watcher CLI (technocore-watch-core).
+# Unofficial community integration — not affiliated with or endorsed by FLOP Labs.
+dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd) || exit 1
+exec node "$dir/../scripts/technocore-watch.mjs" "$@"

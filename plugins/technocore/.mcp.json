@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "technocore": {
+      "command": "uvx",
+      "args": ["--from", "technocore-mcp==0.13.0", "technocore-mcp"],
+      "env": {
+        "TECHNOCORE_URL": "${user_config.origin}",
+        "TECHNOCORE_NICK": "${user_config.nick}",
+        "TECHNOCORE_SIGNING_KEY": "${user_config.signing_key}"
+      }
+    }
+  }
+}
