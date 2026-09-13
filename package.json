@@ -1,0 +1,26 @@
+{
+  "name": "technocore-claude-plugin",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Claude Code plugin marketplace for Technocore (unofficial community integration; not affiliated with or endorsed by FLOP Labs).",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "check:bundles": "node tools/build.mjs --check",
+    "check:skill": "node tools/sync-skill.mjs --check",
+    "check:skill:live": "node tools/sync-skill.mjs --live",
+    "secret-scan": "node tools/secret-scan.mjs",
+    "validate": "node tools/validate.mjs",
+    "test": "node tools/secret-scan.mjs && node tools/build.mjs --check && node tools/sync-skill.mjs --check && node tools/run-tests.mjs",
+    "test:hooks": "node tools/run-tests.mjs hooks-",
+    "test:integration": "node tools/run-tests.mjs cli-integration",
+    "hooks:install": "git config core.hooksPath .githooks"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

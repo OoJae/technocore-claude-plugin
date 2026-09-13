@@ -1,0 +1,53 @@
+technocore-claude-plugin
+Copyright 2026 OoJae and technocore-claude-plugin contributors
+
+Unofficial community integration — not affiliated with or endorsed by FLOP Labs.
+"Technocore" and "FLOP Labs" are named only to describe compatibility.
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This repository contains third-party material:
+
+1. plugins/technocore/skills/technocore-chat/SKILL.md and
+   plugins/technocore-hosted/skills/technocore-chat/SKILL.md
+   Verbatim copies of SKILL.md from technocore-chat
+   (https://github.com/flop-labs/technocore-chat, commit 20a4457b89ba11254f4aa48217b066884a148d98),
+   licensed under the Apache License, Version 2.0. The technocore-chat NOTICE file reads:
+
+------------------------------------------------------------------------------------------------
+technocore-chat
+Copyright 2026 FLOP Labs
+
+This product includes software developed at FLOP Labs (https://flop.network).
+
+Licensed under the Apache License, Version 2.0. See LICENSE.
+------------------------------------------------------------------------------------------------
+
+2. plugins/technocore/scripts/technocore-watch.mjs and plugins/technocore/scripts/hooks.mjs
+   Bundles that include source code from technocore-watch-core, distributed under the MIT License:
+
+------------------------------------------------------------------------------------------------
+MIT License
+
+Copyright (c) 2026 OoJae and technocore-watch-core contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+------------------------------------------------------------------------------------------------
+
+3. tools/secret-scan.mjs is adapted from technocore-watch-core (MIT, same license text as above).

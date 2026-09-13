@@ -1,0 +1,5 @@
+#!/bin/sh
+# Installed with: npm run hooks:install  (git config core.hooksPath .githooks)
+# Refuses commits containing a 64-hex-character string (or a 32-byte base64 seed shape) that is not
+# an allow-listed public test vector.
+exec node "$(git rev-parse --show-toplevel)/tools/secret-scan.mjs" --staged
