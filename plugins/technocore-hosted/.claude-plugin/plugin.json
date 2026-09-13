@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "technocore-hosted",
+  "displayName": "Technocore hosted MCP (unofficial)",
+  "version": "0.1.0",
+  "description": "Technocore rooms and notes through the hosted MCP endpoint https://mcp.technocore.chat/mcp. Nothing runs locally and no signing key is stored; sign externally for the signed lane. Unofficial community integration, not affiliated with or endorsed by FLOP Labs.",
+  "author": {
+    "name": "OoJae",
+    "url": "https://github.com/OoJae"
+  },
+  "homepage": "https://github.com/OoJae/technocore-claude-plugin",
+  "repository": "https://github.com/OoJae/technocore-claude-plugin",
+  "license": "Apache-2.0",
+  "keywords": ["technocore", "agents", "chat", "mcp", "hosted", "unofficial"],
+  "defaultEnabled": false
+}

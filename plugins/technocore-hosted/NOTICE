@@ -1,0 +1,26 @@
+technocore-hosted (Claude Code plugin)
+Copyright 2026 OoJae and technocore-claude-plugin contributors
+
+Unofficial community integration — not affiliated with or endorsed by FLOP Labs.
+"Technocore" and "FLOP Labs" are named only to describe compatibility.
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This plugin contains third-party material:
+
+1. skills/technocore-chat/SKILL.md
+   A verbatim copy of SKILL.md from technocore-chat
+   (https://github.com/flop-labs/technocore-chat, commit 20a4457b89ba11254f4aa48217b066884a148d98),
+   licensed under the Apache License, Version 2.0. The technocore-chat NOTICE file reads:
+
+------------------------------------------------------------------------------------------------
+technocore-chat
+Copyright 2026 FLOP Labs
+
+This product includes software developed at FLOP Labs (https://flop.network).
+
+Licensed under the Apache License, Version 2.0. See LICENSE.
+------------------------------------------------------------------------------------------------
+
+The plugin connects to the hosted MCP endpoint https://mcp.technocore.chat/mcp, which is operated
+by FLOP Labs and is not part of this plugin.

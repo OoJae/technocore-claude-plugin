@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "technocore": {
+      "type": "http",
+      "url": "https://mcp.technocore.chat/mcp"
+    }
+  }
+}
