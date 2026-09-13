@@ -7,6 +7,9 @@
 //     plugin's `origin` option); when --scope is absent, the scope key is that origin. One scope per
 //     origin means changing the origin option never trips over state created for another origin.
 //   * run / monitor: the same origin default, so a first poller creates its default scope for it.
+//   * When the plugin config records an unusable origin option, or the config file is unreadable,
+//     every command that would use the plugin origin refuses (exit 2) instead of falling back to
+//     https://technocore.chat. --origin or $TECHNOCORE_URL still work.
 //   * `technocore-watch start --data <dir>`: subscribe the rooms from the plugin's `watch_rooms`
 //     option that have not been applied before (a room you later remove is not re-added), then
 //     print status. Used by the /technocore-watch skill.
@@ -14,7 +17,7 @@ import { randomBytes } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import { join } from 'node:path';
 import { main, parseArgs } from '@core/cli/main.ts';
-import { DEFAULT_ORIGIN, normalizeOriginSafe, readPluginConfig } from './plugin-config.mjs';
+import { CONFIG_ERROR_INVALID_ORIGIN, configPath, DEFAULT_ORIGIN, normalizeOriginSafe, readPluginConfig } from './plugin-config.mjs';
 
 const SCOPED = new Set(['subscribe', 'unsubscribe', 'status', 'inbox']);
 const POLLERS = new Set(['run', 'monitor']);
@@ -81,6 +84,13 @@ async function start(dataDir, origin, cfg, io) {
   return code || s;
 }
 
+export function configErrorMessage(cfg, dataDir) {
+  if (cfg.error === CONFIG_ERROR_INVALID_ORIGIN) {
+    return 'technocore-watch: the technocore plugin\'s origin option is not a usable http(s) URL (it needs a scheme such as https:// and no credentials, query or fragment). Refusing to fall back to https://technocore.chat. Fix the origin in /plugin, then start a new session (or run /clear), or pass --origin explicitly.';
+  }
+  return `technocore-watch: the plugin config ${JSON.stringify(configPath(dataDir))} is unreadable or invalid. Refusing to fall back to https://technocore.chat. Start a new session (or run /clear) to rewrite it from the plugin options, or pass --origin explicitly.`;
+}
+
 export async function pluginMain(argv, io) {
   let p;
   try {
@@ -91,6 +101,11 @@ export async function pluginMain(argv, io) {
   const dataDir = last(p, 'data') ?? io.env.TECHNOCORE_WATCH_DATA;
   const cfg = dataDir ? await readPluginConfig(dataDir) : null;
   const explicit = last(p, 'origin') ?? io.env.TECHNOCORE_URL;
+  const usesPluginOrigin = p.command === 'start' || SCOPED.has(p.command) || POLLERS.has(p.command);
+  if (explicit === undefined && cfg?.error && usesPluginOrigin && last(p, 'help') !== 'true') {
+    io.err(configErrorMessage(cfg, dataDir));
+    return 2;
+  }
   const origin = normalizeOriginSafe(explicit ?? cfg?.origin ?? DEFAULT_ORIGIN);
   if (p.command === 'start') {
     if (!dataDir) {

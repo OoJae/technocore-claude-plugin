@@ -48,8 +48,8 @@ describe('claude --init-only --plugin-dir (real Claude Code, isolated config)', 
     const has = (s) => assert.ok(text.includes(s), `debug log mentions: ${s}`);
     has('Loaded inline plugin from path: technocore');
     has('Found 1 plugins (1 enabled, 0 disabled)');
-    has('Registered 5 hooks from 1 plugins');
-    has('Loaded 3 skills from plugin technocore');
+    has('Registered 9 hooks from 1 plugins');
+    has('Loaded 4 skills from plugin technocore');
     has('Successfully parsed and validated hook JSON output');
     assert.match(text, /Hook SessionStart \(node \$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/hooks\.mjs session-start\) provided additionalContext \(\d+ chars\)/);
     assert.match(text, /SessionEnd:\w+ \[node \$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/hooks\.mjs session-end\] completed with status 0/);

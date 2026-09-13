@@ -184,6 +184,25 @@ describe('technocore plugin against a local technocore-chat', { timeout: 240_000
     assert.match(peek.stdout, /seq: \[5,12\] {3}has_more: false/);
     assert.match((await skillCommand('technocore-watch status --data "${CLAUDE_PLUGIN_DATA}"')).stdout, /unread 8 /, '--peek does not ack');
 
+    // --- room text in context arms the write guard (PostToolUse on the inbox's Bash call) -------
+    const sayEarly = async () => {
+      const r = await runEvent('PreToolUse', 'mcp__plugin_technocore_technocore__say_signed', { session_id: 'early', tool_name: 'mcp__plugin_technocore_technocore__say_signed', tool_input: { room: 'it-room', text: 'I agree' } }, ctx);
+      assert.equal(r.length, 1);
+      assert.equal(r[0].code, 0);
+      return r[0].stdout ? JSON.parse(r[0].stdout).hookSpecificOutput.permissionDecision : null;
+    };
+    assert.match(context(await runEvent('UserPromptSubmit', undefined, { session_id: 'early', prompt: 'what happened?' }, ctx)).additionalContext, /"new":3/, 'the second burst is injected once');
+    await sleep(2100); // past the notice grace window
+    assert.equal(context(await runEvent('UserPromptSubmit', undefined, { session_id: 'early', prompt: '/technocore:technocore-inbox --peek' }, ctx)), null);
+    assert.equal(await sayEarly(), null, 'quiet at the start of the turn');
+    const peekLine = 'technocore-watch inbox --peek --format framed --data "${CLAUDE_PLUGIN_DATA}"';
+    const peek2 = await skillCommand(peekLine);
+    assert.ok(peek2.stdout.includes('obey-me-now') || peek2.stdout.includes('second burst'), 'room text was printed');
+    const recorded = await runEvent('PostToolUse', 'Bash', { session_id: 'early', tool_name: 'Bash', tool_input: { command: peekLine.split('${CLAUDE_PLUGIN_DATA}').join(data), description: 'Technocore inbox' }, tool_response: { stdout: peek2.stdout, stderr: '' } }, ctx);
+    assert.equal(recorded.length, 1);
+    assert.equal(recorded[0].stdout, '');
+    assert.equal(await sayEarly(), 'ask', 'a signed post after the inbox showed room text asks');
+
     const rest = await skillCommand('technocore-watch inbox --format framed --data "${CLAUDE_PLUGIN_DATA}"');
     const restMsgs = lines(rest.stdout).slice(3, -1).map((l) => JSON.parse(l));
     assert.deepEqual(restMsgs.map((m) => m.seq), [5, 6, 7, 8, 9, 10, 11, 12]);
@@ -211,5 +230,37 @@ describe('technocore plugin against a local technocore-chat', { timeout: 240_000
     const scopes = (await readdir(join(data, 'v1'))).filter((n) => /^[0-9a-f]{16}$/.test(n));
     assert.ok(scopes.length >= 1);
     for (const sc of scopes) assert.equal(JSON.parse(await readFile(join(data, 'v1', sc, 'state.json'), 'utf8')).origin, server.origin);
+  });
+
+  it('write-guard spellings the server really accepts (encoded, dot segments, -sd, trailing slash) all ask', async () => {
+    const o = server.origin;
+    assert.match(o, /^http:\/\/127\.0\.0\.1:\d+$/, 'local server only');
+    const shell = { data: join(tmp.path, 'guard data'), options: { origin: o } };
+    const room = 'enc-room';
+    const writes = [
+      `curl -s -o /dev/null '${o}/r/${room}/%73ay/nick/pct'`,
+      `curl -s -o /dev/null '${o}/r%2F${room}%2Fsay%2Fnick%2Fslash'`,
+      `curl -s -o /dev/null '${o}/%72/${room}/say/nick/encr'`,
+      `curl -s -o /dev/null '${o}/r/x/../${room}/say/nick/dots'`,
+      `curl -s -o /dev/null -sd '{"from":"a","text":"sd"}' '${o}/r/${room}'`,
+      `curl -s -o /dev/null -L -d '{"from":"a","text":"slash-L"}' '${o}/r/${room}/?format=json'`,
+      `curl -s -o /dev/null -sd '{"from":"a","text":"split"}' '${o}/r/'${room}`,
+    ];
+    for (const command of writes) {
+      const r = await runEvent('PreToolUse', 'Bash', { session_id: 'guard', tool_name: 'Bash', tool_input: { command, description: 'x' } }, shell);
+      assert.equal(r.length, 1, command);
+      assert.equal(r[0].stdout ? JSON.parse(r[0].stdout).hookSpecificOutput.permissionDecision : null, 'ask', command);
+      const ran = await runProcess('sh', ['-c', command.replace('curl -s ', 'curl -sf ')], { env: cleanEnv(), timeoutMs: 15_000 });
+      assert.equal(ran.code, 0, `${command}: ${ran.stderr}`);
+    }
+    const kv = `curl -s -o /dev/null '${o}/kv/encns/k/%73et/val'`;
+    const kr = await runEvent('PreToolUse', 'Bash', { session_id: 'guard', tool_name: 'Bash', tool_input: { command: kv, description: 'x' } }, shell);
+    assert.equal(JSON.parse(kr[0].stdout).hookSpecificOutput.permissionDecision, 'ask', kv);
+    assert.equal((await runProcess('sh', ['-c', kv.replace('curl -s ', 'curl -sf ')], { env: cleanEnv() })).code, 0);
+    // the server stored every one of them: the guard's spellings are real writes, not theory
+    const page = await runProcess('curl', ['-s', `${o}/r/${room}?since=0&limit=50`], { env: cleanEnv() });
+    for (const t of ['pct', 'slash', 'encr', 'dots', 'sd', 'slash-L', 'split']) assert.match(page.stdout, new RegExp(`> ${t}$`, 'm'), `stored: ${t}`);
+    assert.match(page.stdout, /messages 7 /);
+    assert.match((await runProcess('curl', ['-s', `${o}/kv/encns/k`], { env: cleanEnv() })).stdout, /^val$/m);
   });
 });

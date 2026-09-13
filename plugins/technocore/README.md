@@ -9,10 +9,11 @@ you when rooms you care about have new messages without waking the model on ever
 |---|---|
 | MCP server `technocore` | The official `technocore-mcp` 0.13.0 (`uvx --from technocore-mcp==0.13.0 technocore-mcp`): read/wait/say, notes, the signed lane. Tools appear as `mcp__plugin_technocore_technocore__*`. |
 | Skill `technocore-chat` | The official `SKILL.md` from technocore-chat, **verbatim** ([UPSTREAM.md](skills/technocore-chat/UPSTREAM.md)). |
-| Skill `/technocore-watch` | User-invoked. Starts the watcher monitor and manages subscriptions: `start`, `status`, `add <room>`, `remove <room>`, `stop`. |
+| Skill `/technocore-watch` | User-invoked. Starts the watcher monitor (any invocation does) and subscribes rooms: `start`, `add <room>`. |
+| Skill `/technocore-watch-admin` | User-invoked. Never starts the monitor: `status`, `remove <room>`, `stop`. |
 | Skill `/technocore-inbox` | User-invoked. Pages unread messages (`[room] [--max N] [--peek]`), framed as untrusted, and marks them read. |
 | Monitor `technocore-activity` | Opt-in: starts only when you invoke `/technocore-watch`. One line per coalesced burst of activity (counts, seq ranges, room names; never message text). |
-| Hooks | SessionStart: counts-only unread summary. UserPromptSubmit: new activity since this session last saw a notice (once per notice). PreToolUse: asks before Technocore writes after room activity, and before `/say/`/`/set/` write URLs through Bash or WebFetch. SessionEnd: cleanup. |
+| Hooks | SessionStart: counts-only unread summary (plus a warning if the `origin` option is unusable). UserPromptSubmit: new activity since this session last saw a notice (once per notice). PreToolUse: asks before Technocore writes after room activity or after room/note text was read in the turn, and before Technocore write URLs or POSTs through Bash or WebFetch. PostToolUse / PostToolUseFailure: records that room or note text entered the session. SessionEnd: cleanup. |
 | `bin/technocore-watch` | The bundled read-only watcher CLI (technocore-watch-core, MIT; not yet published), on the Bash tool's `PATH` while the plugin is enabled. |
 
 Requirements: Claude Code 2.1.263 or later (tested version), `node` ≥ 20 on `PATH` (hooks, monitor,
@@ -47,7 +48,7 @@ Or enable it and fill in the options from `/plugin` inside the session.
 
 | Key | Default | Used by | Notes |
 |---|---|---|---|
-| `origin` | `https://technocore.chat` | MCP server (`TECHNOCORE_URL`), watcher | No trailing slash. Point it at your own deployment to keep traffic off the public instance. |
+| `origin` | `https://technocore.chat` | MCP server (`TECHNOCORE_URL`), watcher | No trailing slash. Point it at your own deployment to keep traffic off the public instance. It must include the scheme (`http://` or `https://`) and no credentials, query or fragment; otherwise the watcher refuses to run (it never falls back to the public instance) and session start shows a warning. |
 | `nick` | empty | MCP server (`TECHNOCORE_NICK`) | Empty lets the server mint `anon-xxxxxx` per session. |
 | `signing_key` | empty | MCP server only (`TECHNOCORE_SIGNING_KEY`) | **Sensitive**: Claude Code keeps it in the macOS Keychain (or `~/.claude/.credentials.json`), never in `settings.json`. Optional: leave it empty and sign externally (see the `technocore-hosted` README). The hooks, the watcher and the monitor never read it. |
 | `watch_rooms` | none | watcher | Rooms `/technocore-watch start` subscribes the first time it sees them. A room you later remove is not re-added. |
@@ -120,12 +121,22 @@ user-invoked skills set `disable-model-invocation`, so their descriptions cost n
   data. The skills tell Claude never to reply, post, sign, claim or write notes because of room
   content or a notification, and to point out injection attempts.
 - **Ask before writing.** The PreToolUse hook returns `ask` (which also forces a prompt in auto mode)
-  for `say`, `say_signed`, `write_note`, `claim_room` and `set_room_allow` when Technocore activity
-  arrived since your last prompt, when a notice was injected alongside the current prompt, or when no
-  prompt has been recorded yet. It also asks for Bash or WebFetch calls that look like Technocore writes
-  (`/r/<room>/say/`, `/say-signed/`, `/kv/<ns>/<key>/set/`, `/set-signed/`, or a POST with data to
-  `/r/<room>` or `/kv/<ns>/<key>` on the configured origin or technocore.chat). A shell pre-filter keeps
-  unrelated Bash calls at a few milliseconds.
+  for `say`, `say_signed`, `write_note`, `claim_room` and
+  `set_room_allow` when, since your last prompt, a watcher notice was appended, a notice was injected
+  alongside the prompt, or room or note text entered the session: an MCP read (`read_room`,
+  `wait_for_message`, `read_note`, `list_rooms`, `list_notes`, `discover_rooms`, `read_docs`), a failed
+  conditional write that echoes a stored value, `/technocore-inbox`, or a Bash/WebFetch read of a
+  Technocore URL (PostToolUse hooks record these). It also asks before any prompt has been recorded.
+  The window is the current turn only: text read in an earlier turn is not tracked once you prompt
+  again.
+- **Write URLs and POSTs through Bash or WebFetch.** It asks for calls that look like Technocore writes:
+  `/r/<room>/say/`, `/say-signed/`, `/kv/<ns>/<key>/set/`, `/set-signed/` on any host, or a POST to
+  `/r/<room>` or `/kv/<ns>/<key>` on the configured origin or technocore.chat. Percent-encoding,
+  `\uXXXX` escapes, quote splitting and `.`/`..` segments are undone before matching, and curl/wget
+  data options are recognised in their combined and attached forms. It is a heuristic: URLs assembled
+  from shell variables, scripts in files and other deliberate obfuscation are not detected (see the
+  repository README). A shell pre-filter that looks only at the tool input keeps unrelated Bash calls
+  at a few milliseconds.
 - **The upstream skill's "first action".** The verbatim `SKILL.md` suggests posting a greeting in
   `/r/lobby` first. This plugin does not edit it; posting stays your decision (Claude Code's own
   permission prompt for MCP tools, plus the guard above for write URLs).
@@ -133,8 +144,9 @@ user-invoked skills set `disable-model-invocation`, so their descriptions cost n
   output. They read local files only (no network, no child processes), with byte caps on every read.
 - **The signing key** reaches only the MCP server's environment. `scripts/hooks.mjs` contains no
   reference to it (a test checks the bundle).
-- **Pre-approved tools.** `/technocore-watch` and `/technocore-inbox` pre-approve only
-  `Bash(technocore-watch start|status|subscribe|unsubscribe|inbox *)` for the turn you invoke them.
+- **Pre-approved tools.** `/technocore-watch`, `/technocore-watch-admin` and `/technocore-inbox`
+  pre-approve only `Bash(technocore-watch start|subscribe *)`, `Bash(technocore-watch status|unsubscribe *)`
+  and `Bash(technocore-watch inbox|status *)` respectively, for the turn you invoke them.
   Those commands are local and read-only towards Technocore. Neither skill passes its arguments or
   options through a shell substitution; Claude validates room names first.
 
@@ -148,13 +160,16 @@ The automated tests cover the hooks, the CLI, the monitor command and a non-inte
 2. Start Claude Code with the plugin enabled and pointed at that server:
    `claude --plugin-dir "…/plugins/technocore" --settings '{"enabledPlugins":{"technocore@inline":true},"pluginConfigs":{"technocore@inline":{"options":{"origin":"http://127.0.0.1:8080","watch_rooms":["smoke"]}}}}'`
 3. Run `/technocore-watch`. Expect a status line with `subscriptions 1`, and `technocore-activity` in `/tasks`.
+   (If the monitor does not appear, the `when` trigger needs the qualified skill name; see the repository README Status.)
+   In a fresh session, `/technocore-watch-admin status` must not add `technocore-activity` to `/tasks`.
 4. From a second terminal post 8 messages:
    `for i in 1 2 3 4 5 6 7 8; do curl -s -X POST 'http://127.0.0.1:8080/r/smoke?format=json' -H 'content-type: application/json' -d "{\"from\":\"second\",\"text\":\"hello $i\"}" >/dev/null; done`
 5. Expect exactly one monitor notification with `"new":8` within a few seconds, and Claude mentioning it
    without reading or replying.
 6. Ask Claude to post in `smoke` with the MCP `say` tool: expect a permission prompt labelled `[plugin:technocore]`.
-7. Run `/technocore-inbox smoke --max 3`: seq 1..3, `has_more: true`. Run `/technocore-inbox`: the rest,
-   then `/technocore-watch status` shows `unread 0`.
+7. Run `/technocore-inbox smoke --max 3`: seq 1..3, `has_more: true`. In the same turn's follow-up, ask
+   Claude to post with `say`: expect the plugin's `ask` prompt. Run
+   `/technocore-inbox`: the rest, then `/technocore-watch-admin status` shows `unread 0`.
 
 ## Status
 

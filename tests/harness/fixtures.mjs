@@ -1,7 +1,7 @@
 // Builders for technocore-watch data directories (state.json + notices.jsonl), matching the
 // on-disk layout of technocore-watch-core's FileStateStore.
 import { createHash } from 'node:crypto';
-import { appendFile, mkdir, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, rename, utimes, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 export function scopeHash(scopeKey) {
@@ -50,4 +50,22 @@ export async function appendNotice(dataDir, scopeKey, n) {
   const dir = join(dataDir, 'v1', scopeHash(scopeKey));
   await mkdir(dir, { recursive: true });
   await appendFile(join(dir, 'notices.jsonl'), (typeof n === 'string' ? n : JSON.stringify(n)) + '\n');
+}
+
+export function journalPath(dataDir, scopeKey) {
+  return join(dataDir, 'v1', scopeHash(scopeKey), 'notices.jsonl');
+}
+
+/** Backdate a journal's mtime (when it was last appended to), e.g. to "long before the prompt". */
+export async function setJournalTime(dataDir, scopeKey, when) {
+  const t = when instanceof Date ? when : new Date(when);
+  await utimes(journalPath(dataDir, scopeKey), t, t);
+}
+
+/** Replace a journal the way core's ring rewrite does: new file (new inode), atomically renamed in. */
+export async function rewriteJournal(dataDir, scopeKey, notices) {
+  const path = journalPath(dataDir, scopeKey);
+  const tmp = `${path}.rewrite.tmp`;
+  await writeFile(tmp, notices.map((n) => (typeof n === 'string' ? n : JSON.stringify(n)) + '\n').join(''));
+  await rename(tmp, path);
 }

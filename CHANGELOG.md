@@ -4,6 +4,14 @@ Unofficial community integration — not affiliated with or endorsed by FLOP Lab
 
 ## 0.1.0 — unreleased
 
+- Review fixes: the Bash/WebFetch write guard undoes percent-encoding, quoting and dot segments and
+  recognises combined curl short options, `--data-ascii`, wget `--body-*`/`--method=POST` and
+  trailing-slash POSTs; PostToolUse/PostToolUseFailure hooks record room or note text read in a turn
+  (MCP reads, `/technocore-inbox`, Technocore URL reads) so a later write in that turn asks; notices are
+  deduplicated by journal position and the guard uses append time; an unusable `origin` option is
+  recorded as an error and the watcher refuses instead of falling back to production;
+  `/technocore-watch-admin` holds status/remove/stop so they no longer start the monitor; merged notices
+  and gap counts respect room generations.
 - Marketplace `technocore-plugins` with two plugins.
 - `technocore`: local MCP server (`technocore-mcp==0.13.0` via uvx), verbatim upstream
   `technocore-chat` skill, `/technocore-watch` and `/technocore-inbox` skills, opt-in

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, it } from 'node:test';
-import { handlersFor, hooksConfig, matches } from './harness/claude-sim.mjs';
+import { handlersFor, hooksConfig, matches, monitorsArmedBy } from './harness/claude-sim.mjs';
 import { REPO } from './harness/run.mjs';
 
 const read = (p) => readFileSync(join(REPO, p), 'utf8');
@@ -105,9 +105,25 @@ describe('plugin: technocore', () => {
     assert.ok(existsSync(join(REPO, P, 'skills', 'technocore-watch', 'SKILL.md')), 'the skill named in `when` exists');
   });
 
+  it('only /technocore-watch (start, add) arms the monitor; status, remove and stop live in a skill that does not', () => {
+    // Claude Code arms a monitor when `when === "on-skill-invoke:" + <dispatched skill>` (exact match,
+    // whatever the arguments), so every invocation of the arming skill starts polling.
+    assert.deepEqual(monitorsArmedBy('technocore-watch').map((m) => m.name), ['technocore-activity']);
+    for (const skill of ['technocore-watch-admin', 'technocore-inbox', 'technocore-chat']) assert.deepEqual(monitorsArmedBy(skill), [], `${skill} arms nothing`);
+    const watch = frontmatter(read(`${P}/skills/technocore-watch/SKILL.md`));
+    const admin = frontmatter(read(`${P}/skills/technocore-watch-admin/SKILL.md`));
+    assert.equal(watch.fm['argument-hint'], '[start | add <room>]');
+    assert.equal(admin.fm['argument-hint'], '[status | remove <room> | stop]');
+    const commands = (body) => [...body.matchAll(/(?<![/\w-])technocore-watch ([a-z]+)/g)].map((x) => x[1]);
+    assert.deepEqual([...new Set(commands(watch.body))].sort(), ['start', 'subscribe']);
+    assert.deepEqual([...new Set(commands(admin.body))].sort(), ['status', 'unsubscribe']);
+    assert.match(watch.body, /with any arguments, starts the plugin's `technocore-activity` monitor/);
+    assert.match(admin.body, /never starts the watcher's `technocore-activity` monitor/);
+  });
+
   it('hooks.json: events, exec form, timeouts, matchers', () => {
     const h = hooksConfig();
-    assert.deepEqual(Object.keys(h).sort(), ['PreToolUse', 'SessionEnd', 'SessionStart', 'UserPromptSubmit']);
+    assert.deepEqual(Object.keys(h).sort(), ['PostToolUse', 'PostToolUseFailure', 'PreToolUse', 'SessionEnd', 'SessionStart', 'UserPromptSubmit']);
     for (const [event, groups] of Object.entries(h)) {
       for (const g of groups) {
         for (const x of g.hooks) {
@@ -128,6 +144,22 @@ describe('plugin: technocore', () => {
     assert.equal(handlersFor('PreToolUse', 'WebFetch').length, 1);
     for (const t of ['BashOutput', 'NotebookEdit', 'mcp__plugin_technocore_technocore__read_room', 'Write']) assert.equal(handlersFor('PreToolUse', t).length, 0, t);
     assert.equal(matches('Bash|WebFetch', 'Bash'), true);
+    // untrusted-text recorders: reads (and unknown Technocore tools) always; writes only on failure
+    const mcp = (t, plugin = 'technocore') => `mcp__plugin_${plugin}_technocore__${t}`;
+    for (const plugin of ['technocore', 'technocore-hosted']) {
+      for (const t of ['read_room', 'wait_for_message', 'list_rooms', 'discover_rooms', 'read_note', 'list_notes', 'read_docs', 'some_future_read']) {
+        assert.equal(handlersFor('PostToolUse', mcp(t, plugin)).length, 1, `PostToolUse ${plugin} ${t}`);
+        assert.equal(handlersFor('PostToolUseFailure', mcp(t, plugin)).length, 1, `PostToolUseFailure ${plugin} ${t}`);
+      }
+      for (const t of ['say', 'say_signed', 'write_note', 'claim_room', 'set_room_allow', 'whoami']) assert.equal(handlersFor('PostToolUse', mcp(t, plugin)).length, 0, `PostToolUse ${t}`);
+      for (const t of ['write_note', 'claim_room', 'set_room_allow']) assert.equal(handlersFor('PostToolUseFailure', mcp(t, plugin)).length, 1, `PostToolUseFailure ${t}`);
+      for (const t of ['say', 'say_signed', 'whoami']) assert.equal(handlersFor('PostToolUseFailure', mcp(t, plugin)).length, 0, `PostToolUseFailure ${t}`);
+    }
+    for (const e of ['PostToolUse', 'PostToolUseFailure']) {
+      assert.equal(handlersFor(e, 'Bash').length, 1);
+      assert.equal(handlersFor(e, 'WebFetch').length, 1);
+      for (const t of ['mcp__other_server__read_room', 'mcp__technocore__read_room', 'Read', 'Write']) assert.equal(handlersFor(e, t).length, 0, `${e} ${t}`);
+    }
   });
 
   it('bin/technocore-watch is an executable sh wrapper around the bundled CLI', () => {
@@ -136,15 +168,15 @@ describe('plugin: technocore', () => {
     const text = readFileSync(p, 'utf8');
     assert.ok(text.startsWith('#!/bin/sh\n'));
     assert.match(text, /exec node "\$dir\/\.\.\/scripts\/technocore-watch\.mjs" "\$@"/);
-    assert.ok(statSync(join(REPO, P, 'scripts', 'pretool-filter.sh')).mode & 0o111);
+    assert.ok(statSync(join(REPO, P, 'scripts', 'tool-filter.sh')).mode & 0o111);
   });
 
   it('skills: upstream verbatim + attribution; inbox and watch are user-only with narrow tool grants', () => {
     const up = frontmatter(read(`${P}/skills/technocore-chat/SKILL.md`));
     assert.equal(up.fm.name, 'technocore-chat');
     assert.ok(existsSync(join(REPO, P, 'skills', 'technocore-chat', 'UPSTREAM.md')));
-    assert.deepEqual(readdirSync(join(REPO, P, 'skills')).sort(), ['technocore-chat', 'technocore-inbox', 'technocore-watch']);
-    const grants = { 'technocore-inbox': ['inbox', 'status'], 'technocore-watch': ['start', 'status', 'subscribe', 'unsubscribe'] };
+    assert.deepEqual(readdirSync(join(REPO, P, 'skills')).sort(), ['technocore-chat', 'technocore-inbox', 'technocore-watch', 'technocore-watch-admin']);
+    const grants = { 'technocore-inbox': ['inbox', 'status'], 'technocore-watch': ['start', 'subscribe'], 'technocore-watch-admin': ['status', 'unsubscribe'] };
     for (const [name, subs] of Object.entries(grants)) {
       const { fm, body } = frontmatter(read(`${P}/skills/${name}/SKILL.md`));
       assert.equal(fm.name, name);

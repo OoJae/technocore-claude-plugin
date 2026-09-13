@@ -1,5 +1,5 @@
 {
-  "description": "technocore plugin hooks: counts-only untrusted activity summaries, and an ask-before-writing guard after room activity. Local state only; every hook exits 0 silently on error.",
+  "description": "technocore plugin hooks: counts-only untrusted activity summaries, and an ask-before-writing guard after room activity or after room/note text was read. Local state only; every hook exits 0 silently on error.",
   "hooks": {
     "SessionStart": [
       {
@@ -54,7 +54,68 @@
             "type": "command",
             "command": "sh",
             "args": [
-              "${CLAUDE_PLUGIN_ROOT}/scripts/pretool-filter.sh"
+              "${CLAUDE_PLUGIN_ROOT}/scripts/tool-filter.sh",
+              "pre-tool"
+            ],
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "^mcp__plugin_technocore(-hosted)?_technocore__(?!(say|say_signed|write_note|claim_room|set_room_allow|whoami)$)[a-z_]+$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/hooks.mjs",
+              "post-tool"
+            ],
+            "timeout": 3
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|WebFetch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/tool-filter.sh",
+              "post-tool"
+            ],
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "^mcp__plugin_technocore(-hosted)?_technocore__(?!(say|say_signed|whoami)$)[a-z_]+$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/hooks.mjs",
+              "post-tool"
+            ],
+            "timeout": 3
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|WebFetch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/tool-filter.sh",
+              "post-tool"
             ],
             "timeout": 3
           }

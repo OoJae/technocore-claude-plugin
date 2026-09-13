@@ -61,6 +61,15 @@ export async function runEvent(event, matchValue, input, ctx) {
   return results;
 }
 
+/**
+ * Monitors Claude Code arms when `skill` is dispatched: it compares each monitor's `when` with
+ * `on-skill-invoke:<skill>` for equality (observed in Claude Code 2.1.263), regardless of arguments.
+ */
+export function monitorsArmedBy(skill, root = PLUGIN) {
+  const monitors = JSON.parse(readFileSync(join(root, 'monitors', 'monitors.json'), 'utf8'));
+  return monitors.filter((m) => (m.when ?? 'always') === `on-skill-invoke:${skill}`);
+}
+
 /** Spawn a monitor from monitors.json the way Claude Code does: `sh -c <command>` in the project dir. */
 export function spawnMonitor(name, ctx) {
   const root = ctx.root ?? PLUGIN;

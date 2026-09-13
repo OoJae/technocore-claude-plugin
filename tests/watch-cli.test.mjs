@@ -49,10 +49,40 @@ describe('technocore-watch wrapper', () => {
     assert.equal((await tw(['status', `--data=${cfg}`])).stdout, statusLine('http://127.0.0.1:1'), '--data=value form');
     assert.equal((await tw(['status'], { TECHNOCORE_WATCH_DATA: cfg })).stdout, statusLine('http://127.0.0.1:1'), '$TECHNOCORE_WATCH_DATA');
 
-    for (const broken of ['{"v":1,"origin":"javascript:alert(1)"}', 'not json', JSON.stringify({ v: 2, origin: 'http://127.0.0.1:9' }), 'x'.repeat(20000)]) {
-      const d = await data(broken);
-      assert.equal((await tw(['status', '--data', d])).stdout, statusLine('https://technocore.chat'), `ignored config: ${broken.slice(0, 30)}`);
+  });
+
+  it('an invalid origin option or an unreadable config refuses instead of falling back to production', async () => {
+    const invalid = { v: 1, origin: null, error: 'invalid-origin', watchRooms: ['p-7f3k2secretroom'] };
+    const broken = ['{"v":1,"origin":"javascript:alert(1)"}', '{"v":1,"origin":"localhost:8080","watchRooms":["lobby"]}', 'not json', JSON.stringify({ v: 2, origin: 'http://127.0.0.1:9' }), '[]', 'x'.repeat(20000)];
+    for (const cfg of [invalid, ...broken]) {
+      const label = (typeof cfg === 'string' ? cfg : JSON.stringify(cfg)).slice(0, 40);
+      const d = await data(cfg);
+      // Kept hermetic even if the refusal regressed: no command here would make a request (start only
+      // subscribes watch_rooms, and the start run below uses a config without rooms; run and monitor
+      // have no subscriptions to poll; subscribe is --offline).
+      for (const args of [['status'], ['subscribe', 'p-7f3k2secretroom', '--offline'], ['unsubscribe', 'lobby'], ['inbox'], ['monitor'], ['run']]) {
+        const r = await tw([...args, '--data', d]);
+        assert.equal(r.code, 2, `${args[0]} with ${label}: exit 2 (${r.stderr})`);
+        assert.equal(r.stdout, '', `${args[0]} with ${label}: no output`);
+        assert.match(r.stderr, /Refusing to fall back to https:\/\/technocore\.chat/, `${args[0]} with ${label}`);
+        assert.match(r.stderr, cfg === invalid || label.includes('localhost') ? /origin option is not a usable http\(s\) URL|unreadable or invalid/ : /unreadable or invalid/);
+        assert.ok(!r.stderr.includes('p-7f3k2secretroom'), 'room names are not echoed');
+      }
+      assert.deepEqual(await scopeOrigins(d), [], `${label}: no scope was created, nothing subscribed`);
+      // an explicit origin is still honoured
+      assert.equal((await tw(['status', '--data', d, '--origin', 'http://127.0.0.1:7'])).stdout, statusLine('http://127.0.0.1:7'));
+      assert.equal((await tw(['status', '--data', d], { TECHNOCORE_URL: 'http://127.0.0.1:8' })).stdout, statusLine('http://127.0.0.1:8'));
     }
+    for (const cfg of [{ ...invalid, watchRooms: [] }, 'not json']) {
+      const d = await data(cfg);
+      const inv = await tw(['start', '--data', d]);
+      assert.equal(inv.code, 2);
+      assert.equal(inv.stdout, '');
+      assert.match(inv.stderr, typeof cfg === 'string' ? /unreadable or invalid/ : /the technocore plugin's origin option is not a usable http\(s\) URL/);
+      assert.deepEqual(await scopeOrigins(d), [], 'start subscribed nothing and created no scope');
+    }
+    // no config file at all (SessionStart has not run): the documented default still applies
+    assert.equal((await tw(['status', '--data', await data()])).stdout, statusLine('https://technocore.chat'));
   });
 
   it('subscribe --offline records the plugin origin as the scope; changing origin uses a new scope', async () => {

@@ -3578,22 +3578,30 @@ function parseWatchRooms(raw) {
 function configPath(dataDir2) {
   return join3(dataDir2, "hooks-v1", "plugin-config.json");
 }
+var CONFIG_ERROR_INVALID_ORIGIN = "invalid-origin";
+var CONFIG_ERROR_UNREADABLE = "unreadable-config";
 async function readPluginConfig(dataDir2) {
+  const unreadable = { v: 1, origin: null, error: CONFIG_ERROR_UNREADABLE, watchRooms: [] };
+  let h;
   try {
-    const h = await fs2.open(configPath(dataDir2), "r");
-    try {
-      const st = await h.stat();
-      if (!st.isFile() || st.size > MAX_CONFIG_BYTES) return null;
-      const v = JSON.parse(await h.readFile("utf8"));
-      if (!v || typeof v !== "object" || v.v !== 1) return null;
-      const origin = normalizeOriginSafe(v.origin);
-      if (!origin) return null;
-      return { v: 1, origin, watchRooms: parseWatchRooms(JSON.stringify(Array.isArray(v.watchRooms) ? v.watchRooms : [])) };
-    } finally {
-      await h.close();
-    }
+    h = await fs2.open(configPath(dataDir2), "r");
+  } catch (e) {
+    return e && e.code === "ENOENT" ? null : unreadable;
+  }
+  try {
+    const st = await h.stat();
+    if (!st.isFile() || st.size > MAX_CONFIG_BYTES) return unreadable;
+    const v = JSON.parse(await h.readFile("utf8"));
+    if (!v || typeof v !== "object" || Array.isArray(v) || v.v !== 1) return unreadable;
+    const watchRooms = parseWatchRooms(JSON.stringify(Array.isArray(v.watchRooms) ? v.watchRooms : []));
+    if (v.origin === null && v.error === CONFIG_ERROR_INVALID_ORIGIN) return { v: 1, origin: null, error: CONFIG_ERROR_INVALID_ORIGIN, watchRooms };
+    const origin = normalizeOriginSafe(v.origin);
+    if (!origin) return unreadable;
+    return { v: 1, origin, watchRooms };
   } catch {
-    return null;
+    return unreadable;
+  } finally {
+    await h.close().catch(() => void 0);
   }
 }
 
@@ -3655,6 +3663,12 @@ async function start(dataDir2, origin, cfg, io) {
   const s = await main(["status", "--data", dataDir2, "--origin", origin, "--scope", origin], io);
   return code || s;
 }
+function configErrorMessage(cfg, dataDir2) {
+  if (cfg.error === CONFIG_ERROR_INVALID_ORIGIN) {
+    return "technocore-watch: the technocore plugin's origin option is not a usable http(s) URL (it needs a scheme such as https:// and no credentials, query or fragment). Refusing to fall back to https://technocore.chat. Fix the origin in /plugin, then start a new session (or run /clear), or pass --origin explicitly.";
+  }
+  return `technocore-watch: the plugin config ${JSON.stringify(configPath(dataDir2))} is unreadable or invalid. Refusing to fall back to https://technocore.chat. Start a new session (or run /clear) to rewrite it from the plugin options, or pass --origin explicitly.`;
+}
 async function pluginMain(argv, io) {
   let p;
   try {
@@ -3665,6 +3679,11 @@ async function pluginMain(argv, io) {
   const dataDir2 = last(p, "data") ?? io.env.TECHNOCORE_WATCH_DATA;
   const cfg = dataDir2 ? await readPluginConfig(dataDir2) : null;
   const explicit = last(p, "origin") ?? io.env.TECHNOCORE_URL;
+  const usesPluginOrigin = p.command === "start" || SCOPED.has(p.command) || POLLERS.has(p.command);
+  if (explicit === void 0 && cfg?.error && usesPluginOrigin && last(p, "help") !== "true") {
+    io.err(configErrorMessage(cfg, dataDir2));
+    return 2;
+  }
   const origin = normalizeOriginSafe(explicit ?? cfg?.origin ?? DEFAULT_ORIGIN2);
   if (p.command === "start") {
     if (!dataDir2) {
@@ -3714,5 +3733,6 @@ async function pluginMain(argv, io) {
   );
 }
 export {
+  configErrorMessage,
   pluginMain
 };
