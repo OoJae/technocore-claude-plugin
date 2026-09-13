@@ -1,0 +1,52 @@
+# Unofficial community integration — not affiliated with or endorsed by FLOP Labs.
+# Not yet run anywhere: nothing has been pushed. Needs the technocore-watch-core repository to be
+# public (the bundle freshness check rebuilds from it).
+name: ci
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node: [20, 22, 24]
+    defaults:
+      run:
+        # A path with a space, on purpose: hooks, monitor and CLI must quote every path.
+        working-directory: "work dir/technocore-claude-plugin"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: "work dir/technocore-claude-plugin"
+      - uses: actions/checkout@v4
+        with:
+          repository: OoJae/technocore-watch-core
+          path: "work dir/technocore-watch-core"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: astral-sh/setup-uv@v6
+      - name: Local technocore-chat 0.13.0 (test server only; tests never touch production)
+        working-directory: "work dir"
+        run: |
+          git clone https://github.com/flop-labs/technocore-chat .cache/technocore-chat
+          git -C .cache/technocore-chat checkout 20a4457b89ba11254f4aa48217b066884a148d98
+          cd .cache/technocore-chat && uv sync --frozen
+      - name: Claude Code CLI (validator and --init-only smoke test; no login needed)
+        run: npm install -g @anthropic-ai/claude-code@2.1.263
+      - run: npm ci
+      - run: npm test
+  skill-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Compare the pinned SKILL.md with the served and upstream copies (read-only GETs)
+        run: node tools/sync-skill.mjs --live
