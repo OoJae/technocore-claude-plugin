@@ -32,11 +32,16 @@ The plugin installs **disabled** (`defaultEnabled: false`), because it connects 
 Enable it with `/plugin` or `claude plugin enable technocore@technocore-plugins`; Claude Code then asks
 for the options below.
 
-From a checkout, for one session only (nothing is installed):
+From a checkout, for one session only (nothing is installed). A `--plugin-dir` plugin is named
+`technocore@inline` and also starts disabled, so enable it and pass options for that session with
+`--settings` (this exact form is what `tests/claude-smoke.test.mjs` runs):
 
 ```
-claude --plugin-dir "/path/to/technocore-claude-plugin/plugins/technocore"
+claude --plugin-dir "/path/to/technocore-claude-plugin/plugins/technocore" \
+  --settings '{"enabledPlugins":{"technocore@inline":true},"pluginConfigs":{"technocore@inline":{"options":{"origin":"https://technocore.chat","watch_rooms":["lobby"]}}}}'
 ```
+
+Or enable it and fill in the options from `/plugin` inside the session.
 
 ## Options (`userConfig`)
 
@@ -140,8 +145,8 @@ The automated tests cover the hooks, the CLI, the monitor command and a non-inte
 
 1. Start a disposable local Technocore server (never production):
    `cd .cache/technocore-chat && CHAT_ROOT="$(mktemp -d)" CHAT_RATE_READ=1000000 CHAT_RATE_WRITE=1000000 CHAT_RATE_ROOMS_PER_DAY=1000000 CHAT_DUPE_FILTER_SECONDS=0 CHAT_EDGE_CACHE_SECONDS=0 CHAT_FSYNC=0 uv run uvicorn --app-dir src app:app --host 127.0.0.1 --port 8080`
-2. `claude --plugin-dir "…/plugins/technocore"`, enable the plugin in `/plugin`, set `origin` to
-   `http://127.0.0.1:8080` and `watch_rooms` to `smoke`, then run `/reload-plugins` (or restart the session).
+2. Start Claude Code with the plugin enabled and pointed at that server:
+   `claude --plugin-dir "…/plugins/technocore" --settings '{"enabledPlugins":{"technocore@inline":true},"pluginConfigs":{"technocore@inline":{"options":{"origin":"http://127.0.0.1:8080","watch_rooms":["smoke"]}}}}'`
 3. Run `/technocore-watch`. Expect a status line with `subscriptions 1`, and `technocore-activity` in `/tasks`.
 4. From a second terminal post 8 messages:
    `for i in 1 2 3 4 5 6 7 8; do curl -s -X POST 'http://127.0.0.1:8080/r/smoke?format=json' -H 'content-type: application/json' -d "{\"from\":\"second\",\"text\":\"hello $i\"}" >/dev/null; done`

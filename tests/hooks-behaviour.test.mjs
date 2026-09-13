@@ -248,6 +248,12 @@ describe('pre-tool decisions (through hooks.json, as Claude Code runs them)', ()
       'x'.repeat(200_000),
     ];
     for (const c of quietOnes) await quiet(bash(c), ctx, c.slice(0, 60));
+    // a JSON writer that escapes "/" as "\\/" still reaches the guard
+    const escaped = JSON.stringify(bash("curl 'https://technocore.chat/r/lobby/say/me/hi'")).replace(/\//g, '\\/');
+    assert.ok(escaped.includes('\\/r\\/lobby'));
+    const viaEscaped = await runEvent('PreToolUse', 'Bash', escaped, ctx);
+    assert.equal(viaEscaped.length, 1);
+    assert.equal(decision(viaEscaped[0]), 'ask', 'escaped slashes');
     await ask({ session_id: 'b', tool_name: 'WebFetch', tool_input: { url: 'https://technocore.chat/r/lobby/say/me/hi', prompt: 'x' } }, ctx, 'WebFetch write');
     await quiet({ session_id: 'b', tool_name: 'WebFetch', tool_input: { url: 'https://technocore.chat/r/lobby?since=0', prompt: 'x' } }, ctx, 'WebFetch read');
     // the shell pre-filter keeps unrelated Bash calls cheap: no node start

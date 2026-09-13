@@ -6,6 +6,7 @@
 input=$(cat) || exit 0
 case "$input" in
   */r/*|*/kv/*|*/say/*|*/say-signed/*|*/set/*|*/set-signed/*) ;;
+  *'\/r\/'*|*'\/kv\/'*|*'\/say'*|*'\/set'*) ;; # JSON writers that escape "/" as "\/"
   *) exit 0 ;;
 esac
 dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd) || exit 0

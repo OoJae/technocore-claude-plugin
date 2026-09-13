@@ -709,9 +709,7 @@ async function main() {
   if (out) process.stdout.write(out + "\n", () => process.exit(0));
   else process.exit(0);
 }
-if (!process.env.TECHNOCORE_HOOKS_NO_MAIN) {
-  main().catch(() => process.exit(0));
-}
+main().catch(() => process.exit(0));
 export {
   MAX_CONTEXT_CHARS,
   SUMMARY_HEADER,

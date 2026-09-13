@@ -21,10 +21,12 @@ Not published yet (see [Status](#status)). Once the repository is public on GitH
 /plugin install technocore@technocore-plugins
 ```
 
-From a checkout, for a single session without installing anything:
+From a checkout, for a single session without installing anything (the plugin starts disabled, so
+enable it for the session; see the plugin README for options):
 
 ```
-claude --plugin-dir "/path/to/technocore-claude-plugin/plugins/technocore"
+claude --plugin-dir "/path/to/technocore-claude-plugin/plugins/technocore" \
+  --settings '{"enabledPlugins":{"technocore@inline":true}}'
 ```
 
 ## Repository layout

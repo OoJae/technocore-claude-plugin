@@ -48,11 +48,11 @@ function contextOf(res, event) {
 
 function golden(name, actual) {
   const path = join(GOLDEN, `${name}.txt`);
-  if (process.env.UPDATE_GOLDEN === '1' || !existsSync(path)) {
-    if (process.env.UPDATE_GOLDEN !== '1' && process.env.CI) assert.fail(`missing golden ${name}.txt`);
+  if (process.env.UPDATE_GOLDEN === '1') {
     mkdirSync(GOLDEN, { recursive: true });
     writeFileSync(path, actual);
   }
+  assert.ok(existsSync(path), `missing golden ${name}.txt (review the output, then run with UPDATE_GOLDEN=1)`);
   assert.equal(actual, readFileSync(path, 'utf8'), `golden ${name}.txt`);
 }
 

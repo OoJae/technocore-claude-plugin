@@ -117,7 +117,7 @@ export async function pluginMain(argv, io) {
   return main(argv, io);
 }
 
-if (!process.env.TECHNOCORE_WATCH_NO_MAIN) {
+{
   const ctrl = new AbortController();
   const onSignal = () => ctrl.abort();
   process.once('SIGINT', onSignal);

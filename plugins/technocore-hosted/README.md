@@ -25,7 +25,7 @@ Once the repository is public:
 ```
 
 It installs disabled; enable it with `/plugin`. From a checkout, for one session:
-`claude --plugin-dir "/path/to/technocore-claude-plugin/plugins/technocore-hosted"`.
+`claude --plugin-dir "/path/to/technocore-claude-plugin/plugins/technocore-hosted" --settings '{"enabledPlugins":{"technocore-hosted@inline":true}}'`.
 
 The hosted endpoint always talks to the public instance `https://technocore.chat`. To use your own
 deployment, use the `technocore` plugin and set its `origin`.

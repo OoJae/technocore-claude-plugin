@@ -602,6 +602,4 @@ async function main() {
   else process.exit(0);
 }
 
-if (!process.env.TECHNOCORE_HOOKS_NO_MAIN) {
-  main().catch(() => process.exit(0));
-}
+main().catch(() => process.exit(0));
