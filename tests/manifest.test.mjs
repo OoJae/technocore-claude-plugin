@@ -1,10 +1,12 @@
 // Static checks of the marketplace and plugin files against the plan and the Claude Code plugin
 // reference (plugins-reference.md, plugin-marketplaces.md, hooks.md, skills.md as of 2026-09-13).
 import assert from 'node:assert/strict';
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, it } from 'node:test';
-import { handlersFor, hooksConfig, matches, monitorsArmedBy } from './harness/claude-sim.mjs';
+import { handlersFor, hooksConfig, matches, monitorsArmedBy, pluginSkillCommand } from './harness/claude-sim.mjs';
 import { REPO } from './harness/run.mjs';
 
 const read = (p) => readFileSync(join(REPO, p), 'utf8');
@@ -98,18 +100,38 @@ describe('plugin: technocore', () => {
     assert.equal(ms.length, 1);
     const m = ms[0];
     assert.equal(m.name, 'technocore-activity');
-    assert.equal(m.when, 'on-skill-invoke:technocore-watch');
+    // Plugin skills dispatch as `<plugin>:<skill dir>` in Claude Code 2.1.263, and the trigger is an exact
+    // string match on that name: the bare `on-skill-invoke:technocore-watch` would never arm.
+    assert.equal(m.when, 'on-skill-invoke:technocore:technocore-watch');
     assert.ok(m.description);
     assert.equal(m.command, 'node "${CLAUDE_PLUGIN_ROOT}/scripts/technocore-watch.mjs" monitor --data "${CLAUDE_PLUGIN_DATA}"');
     assert.ok(!m.command.includes('user_config'));
-    assert.ok(existsSync(join(REPO, P, 'skills', 'technocore-watch', 'SKILL.md')), 'the skill named in `when` exists');
+    const [plugin, skillDir, ...rest] = m.when.slice('on-skill-invoke:'.length).split(':');
+    assert.deepEqual(rest, [], '`when` names exactly <plugin>:<skill>');
+    assert.equal(plugin, json(`${P}/.claude-plugin/plugin.json`).name, 'the plugin named in `when` is this plugin');
+    assert.ok(existsSync(join(REPO, P, 'skills', skillDir, 'SKILL.md')), 'the skill named in `when` exists');
   });
 
   it('only /technocore-watch (start, add) arms the monitor; status, remove and stop live in a skill that does not', () => {
-    // Claude Code arms a monitor when `when === "on-skill-invoke:" + <dispatched skill>` (exact match,
-    // whatever the arguments), so every invocation of the arming skill starts polling.
+    // Claude Code arms a monitor when `when === "on-skill-invoke:" + <dispatched command name>` (exact
+    // match, whatever the arguments; plugin skills are named `<plugin>:<dir>`), so every invocation of
+    // the arming skill starts polling and no other skill, including one whose name extends it, does.
+    assert.equal(pluginSkillCommand('technocore-watch'), 'technocore:technocore-watch');
     assert.deepEqual(monitorsArmedBy('technocore-watch').map((m) => m.name), ['technocore-activity']);
-    for (const skill of ['technocore-watch-admin', 'technocore-inbox', 'technocore-chat']) assert.deepEqual(monitorsArmedBy(skill), [], `${skill} arms nothing`);
+    const others = readdirSync(join(REPO, P, 'skills')).filter((d) => d !== 'technocore-watch');
+    assert.ok(others.includes('technocore-watch-admin'));
+    for (const skill of others) assert.deepEqual(monitorsArmedBy(skill), [], `${skill} arms nothing`);
+    // The unqualified trigger the plugin shipped before never matches a dispatched plugin skill.
+    const tmp = mkdtempSync(join(tmpdir(), 'tc-monitors-'));
+    try {
+      mkdirSync(join(tmp, '.claude-plugin'));
+      mkdirSync(join(tmp, 'monitors'));
+      writeFileSync(join(tmp, '.claude-plugin', 'plugin.json'), read(`${P}/.claude-plugin/plugin.json`));
+      writeFileSync(join(tmp, 'monitors', 'monitors.json'), JSON.stringify([{ name: 'bare', command: 'true', description: 'bare', when: 'on-skill-invoke:technocore-watch' }]));
+      assert.deepEqual(monitorsArmedBy('technocore-watch', tmp), [], 'a bare skill name never arms a plugin monitor');
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
     const watch = frontmatter(read(`${P}/skills/technocore-watch/SKILL.md`));
     const admin = frontmatter(read(`${P}/skills/technocore-watch-admin/SKILL.md`));
     assert.equal(watch.fm['argument-hint'], '[start | add <room>]');
@@ -232,5 +254,26 @@ describe('licensing and notices', () => {
   it('every README states the unofficial status', () => {
     const readmes = ['README.md', 'plugins/technocore/README.md', 'plugins/technocore-hosted/README.md'];
     for (const r of readmes) assert.ok(read(r).includes(UNOFFICIAL), r);
+  });
+
+  it('no email addresses: author/owner are a name and a URL, and no tracked file carries an address', () => {
+    const person = { name: 'OoJae', url: 'https://github.com/OoJae' };
+    assert.deepEqual(json('.claude-plugin/marketplace.json').owner, person);
+    for (const p of json('.claude-plugin/marketplace.json').plugins) assert.equal(p.author, undefined, `${p.name}: author comes from plugin.json`);
+    for (const dir of ['plugins/technocore', 'plugins/technocore-hosted']) assert.deepEqual(json(`${dir}/.claude-plugin/plugin.json`).author, person, dir);
+    assert.equal(json('package.json').author, undefined, 'package.json has no author field to leak an address');
+    // A local part, an at sign and a dotted domain, not preceded by URL userinfo (the `user:pass` origin
+    // fixtures in the hook tests check credential refusal).
+    const EMAIL = /(?<![\w.%+:/-])[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/;
+    const listed = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: REPO, encoding: 'utf8' }).split('\0').filter(Boolean);
+    assert.ok(listed.includes('package.json'), 'git lists the repository files');
+    const hits = [];
+    for (const f of listed) {
+      if (!existsSync(join(REPO, f)) || !statSync(join(REPO, f)).isFile()) continue;
+      const buf = readFileSync(join(REPO, f));
+      if (buf.includes(0)) continue;
+      buf.toString('utf8').split('\n').forEach((line, i) => EMAIL.test(line) && hits.push(`${f}:${i + 1}`));
+    }
+    assert.deepEqual(hits, []);
   });
 });

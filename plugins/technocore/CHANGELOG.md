@@ -4,6 +4,9 @@ Unofficial community integration — not affiliated with or endorsed by FLOP Lab
 
 ## 0.1.0 — unreleased
 
+- The `technocore-activity` monitor trigger is `on-skill-invoke:technocore:technocore-watch`: Claude Code
+  2.1.263 dispatches plugin skills as `<plugin>:<skill>` and arms on an exact match, so the bare
+  `on-skill-invoke:technocore-watch` never started the monitor.
 - Review fixes: the Bash/WebFetch write guard undoes percent-encoding, quoting and dot segments and
   recognises combined curl short options, `--data-ascii`, wget `--body-*`/`--method=POST` and
   trailing-slash POSTs; PostToolUse/PostToolUseFailure hooks record room or note text read in a turn

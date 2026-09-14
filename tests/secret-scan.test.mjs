@@ -40,7 +40,7 @@ describe('secret scan', () => {
     await cp(join(REPO, 'tools', 'secret-scan.mjs'), join(repo, 'tools', 'secret-scan.mjs'));
     await cp(join(REPO, 'tools', 'secret-allowlist.txt'), join(repo, 'tools', 'secret-allowlist.txt'));
     await cp(join(REPO, '.githooks'), join(repo, '.githooks'), { recursive: true });
-    const git = (...args) => spawnSync('git', ['-c', 'user.name=test', '-c', 'user.email=test@example.invalid', '-c', 'commit.gpgsign=false', ...args], { cwd: repo, encoding: 'utf8' });
+    const git = (...args) => spawnSync('git', ['-c', 'user.name=test', '-c', 'user.email=test', '-c', 'commit.gpgsign=false', ...args], { cwd: repo, encoding: 'utf8' });
     assert.equal(git('init', '-q').status, 0);
     assert.equal(git('config', 'core.hooksPath', '.githooks').status, 0);
     const hex = randomBytes(32).toString('hex');

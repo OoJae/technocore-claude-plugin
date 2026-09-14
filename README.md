@@ -63,7 +63,7 @@ throwaway `CHAT_ROOT`, and test signing uses a public test-only seed (32 bytes o
 
 | Suite | What it proves |
 |---|---|
-| `manifest` | marketplace and plugin files match the plan and the plugin reference: userConfig (sensitive optional key), pinned uvx command, opt-in monitor armed only by `/technocore-watch` (not by the admin skill), exec-form hooks and matchers, user-only skills with narrow `allowed-tools` and no shell substitution of arguments, licences and notices, the unofficial statement in every README |
+| `manifest` | marketplace and plugin files match the plan and the plugin reference: userConfig (sensitive optional key), pinned uvx command, opt-in monitor armed only by `/technocore-watch` through the qualified trigger `on-skill-invoke:technocore:technocore-watch` (a bare skill name never matches; the admin skill and the other skills do not arm it), exec-form hooks and matchers, user-only skills with narrow `allowed-tools` and no shell substitution of arguments, licences and notices, the unofficial statement in every README |
 | `validate` | the real `claude plugin validate --strict` passes on the marketplace root, both plugins and both skills directories, and rejects a deliberately broken copy |
 | `hooks-golden` | exact SessionStart / UserPromptSubmit / PreToolUse outputs from fixture state, including hostile room names (bidi, ZWJ, newlines, forged banners, path tricks), unusable origins, torn journals, 600 rooms (≤ 1,500 characters) and oversized state |
 | `hooks-behaviour` | silence on every failure (no data, garbage stdin, a file as data dir, unreadable state, a stdin that never closes), a 20 MiB prompt, a 6 MiB journal, session-file bounds (an oversized file is provably not trusted) and garbage collection, hostile session ids, `inject_on_prompt`, the PreToolUse matrix run through `hooks.json` (MCP write tools; Bash/WebFetch write URLs including percent-encoded, dot-segment, quote-split, trailing-slash and combined-short-option spellings; reads), the PostToolUse/PostToolUseFailure recorders (MCP reads, the inbox command, curl/WebFetch reads arm the guard until the next prompt), append-order dedupe across scopes and ring rewrites, generation-aware merging and gap counts, option copying without the signing key, an unusable origin recorded as an error with a warning, SessionEnd cleanup |
@@ -99,8 +99,9 @@ Not done, or not verifiable on this machine without an interactive session (hone
   ([plugins/technocore/README.md](plugins/technocore/README.md#manual-smoke-test-interactive)).
   Claude Code runs plugin monitors only in interactive sessions, and skills and permission prompts need
   a model turn, so these were not exercised automatically: that invoking `/technocore-watch` starts the
-  `technocore-activity` monitor (`when: on-skill-invoke`), that monitor lines arrive as notifications,
-  that `bin/` is on the Bash tool's `PATH` and the skills' `allowed-tools` rules match, that the
+  `technocore-activity` monitor (`when: on-skill-invoke:technocore:technocore-watch`), that monitor
+  lines arrive as notifications, that `bin/` is on the Bash tool's `PATH` and the skills'
+  `allowed-tools` rules match, that the
   UserPromptSubmit context and the PreToolUse `ask` prompt appear in the UI. The monitor command,
   the CLI and the hooks themselves are tested as child processes with the exact configured command
   lines, and `claude --init-only` confirms loading, SessionStart output validation and SessionEnd.
@@ -147,12 +148,13 @@ Not done, or not verifiable on this machine without an interactive session (hone
 - **Monitors keep running if the plugin is disabled mid-session** (Claude Code behaviour); they stop when
   the session ends. Any invocation of `/technocore-watch` starts the monitor, whatever its arguments;
   status, remove and stop are therefore in `/technocore-watch-admin`, which never starts it.
-- **Monitor trigger name not verified interactively.** `monitors.json` uses
-  `on-skill-invoke:technocore-watch`, the plain skill name as the plugin reference describes. Reading the
-  Claude Code 2.1.263 binary suggests the comparison is an exact string match against the dispatched
-  command name, which for plugin skills may be the qualified `technocore:technocore-watch`. If so, the
-  monitor would not start from `/technocore-watch`; step 3 of the manual smoke test checks this. The
-  admin-skill split is correct either way.
+- **Monitor trigger read from the Claude Code binary, not exercised interactively.** `monitors.json` uses
+  `on-skill-invoke:technocore:technocore-watch`. The plugin reference writes `on-skill-invoke:<skill>`,
+  but in Claude Code 2.1.263 a plugin skill in `skills/<dir>/` is registered as `<plugin>:<dir>`, a slash
+  command dispatches under that name, and a monitor arms when its `when` equals `on-skill-invoke:` plus
+  that name exactly; the bare `on-skill-invoke:technocore-watch` this plugin used before would never
+  start the monitor. The `manifest` suite pins this, but a future Claude Code that changes the naming
+  would need the trigger updated; step 3 of the manual smoke test checks it.
 - **Windows** is untested: `bin/technocore-watch` and the PreToolUse pre-filter are POSIX `sh` scripts.
 - **Both plugins together** list the upstream `technocore-chat` skill twice and start two MCP servers.
 - **The hosted variant has no watcher or hooks** by design (nothing runs locally). The hosted endpoint

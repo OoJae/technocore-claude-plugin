@@ -62,12 +62,24 @@ export async function runEvent(event, matchValue, input, ctx) {
 }
 
 /**
- * Monitors Claude Code arms when `skill` is dispatched: it compares each monitor's `when` with
- * `on-skill-invoke:<skill>` for equality (observed in Claude Code 2.1.263), regardless of arguments.
+ * The command name Claude Code gives a skill in a plugin's `skills/<dir>/SKILL.md`:
+ * `<plugin.json name>:<dir>`, with characters outside [A-Za-z0-9_-] replaced by `-` (read from the
+ * Claude Code 2.1.263 plugin skill loader). A `/<dir>` slash command dispatches under this name.
  */
-export function monitorsArmedBy(skill, root = PLUGIN) {
+export function pluginSkillCommand(skillDir, root = PLUGIN) {
+  const { name } = JSON.parse(readFileSync(join(root, '.claude-plugin', 'plugin.json'), 'utf8'));
+  return `${name}:${skillDir.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+}
+
+/**
+ * Monitors Claude Code arms when the plugin skill in `skills/<skillDir>` is dispatched: it compares each
+ * monitor's `when` with `on-skill-invoke:` + the dispatched command name (`<plugin>:<dir>`) for exact
+ * string equality, regardless of arguments (Claude Code 2.1.263). A bare `on-skill-invoke:<dir>` never
+ * matches a plugin skill.
+ */
+export function monitorsArmedBy(skillDir, root = PLUGIN) {
   const monitors = JSON.parse(readFileSync(join(root, 'monitors', 'monitors.json'), 'utf8'));
-  return monitors.filter((m) => (m.when ?? 'always') === `on-skill-invoke:${skill}`);
+  return monitors.filter((m) => (m.when ?? 'always') === `on-skill-invoke:${pluginSkillCommand(skillDir, root)}`);
 }
 
 /** Spawn a monitor from monitors.json the way Claude Code does: `sh -c <command>` in the project dir. */

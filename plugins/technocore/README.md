@@ -160,7 +160,8 @@ The automated tests cover the hooks, the CLI, the monitor command and a non-inte
 2. Start Claude Code with the plugin enabled and pointed at that server:
    `claude --plugin-dir "…/plugins/technocore" --settings '{"enabledPlugins":{"technocore@inline":true},"pluginConfigs":{"technocore@inline":{"options":{"origin":"http://127.0.0.1:8080","watch_rooms":["smoke"]}}}}'`
 3. Run `/technocore-watch`. Expect a status line with `subscriptions 1`, and `technocore-activity` in `/tasks`.
-   (If the monitor does not appear, the `when` trigger needs the qualified skill name; see the repository README Status.)
+   The monitor's trigger is `on-skill-invoke:technocore:technocore-watch` (plugin skills dispatch as
+   `<plugin>:<skill>`); if it does not appear, check the name `/technocore-watch` runs under in this Claude Code version.
    In a fresh session, `/technocore-watch-admin status` must not add `technocore-activity` to `/tasks`.
 4. From a second terminal post 8 messages:
    `for i in 1 2 3 4 5 6 7 8; do curl -s -X POST 'http://127.0.0.1:8080/r/smoke?format=json' -H 'content-type: application/json' -d "{\"from\":\"second\",\"text\":\"hello $i\"}" >/dev/null; done`
