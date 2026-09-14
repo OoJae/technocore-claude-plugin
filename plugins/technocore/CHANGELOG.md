@@ -4,7 +4,7 @@ Unofficial community integration — not affiliated with or endorsed by FLOP Lab
 
 ## 0.1.0 — unreleased
 
-- Bundled `technocore-watch` CLI rebuilt from technocore-watch-core @ ca4b04d: notice timing now 2 s
+- Bundled `technocore-watch` CLI rebuilt from technocore-watch-core @ 3a47f92: notice timing now 2 s
   quiet / 7 s max delay / 8 s minimum wake (was 2 / 10 / 30 s), so a flood gives one monitor line per
   8 s instead of per 30 s, and flood re-poll pacing (on) naps a room's poller until just before a held
   notice is due instead of re-reading after every message. The plugin README and `/technocore-watch`
@@ -25,7 +25,7 @@ Unofficial community integration — not affiliated with or endorsed by FLOP Lab
 - `technocore`: local MCP server (`technocore-mcp==0.13.0` via uvx), verbatim upstream
   `technocore-chat` skill, `/technocore-watch` and `/technocore-inbox` skills, opt-in
   `technocore-activity` monitor, SessionStart / UserPromptSubmit / PreToolUse / SessionEnd hooks,
-  bundled `technocore-watch` CLI (technocore-watch-core @ ca4b04d).
+  bundled `technocore-watch` CLI (technocore-watch-core @ 3a47f92).
 - `technocore-hosted`: hosted MCP endpoint and external-signer documentation.
 - Tooling: esbuild bundling with a freshness check, `sync-skill` pin check and drift report,
   secret scan with a pre-commit hook, `claude plugin validate --strict` runner.

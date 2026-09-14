@@ -78,13 +78,13 @@ throwaway `CHAT_ROOT`, and test signing uses a public test-only seed (32 bytes o
 
 <!-- test-results:start -->
 Last full `npm test` (2026-09-14, macOS 26 on Apple M5 16 GB, Node 26.0.0, Claude Code 2.1.263,
-uv 0.11.14, technocore-chat @ 20a4457, technocore-watch-core @ ca4b04d), after rebuilding the bundles
+uv 0.11.14, technocore-chat @ 20a4457, technocore-watch-core @ 3a47f92), after rebuilding the bundles
 for the core's new notice timing (2 s / 7 s / 8 s) and flood re-poll pacing: secret scan, bundle
 freshness and SKILL.md pin checks OK, then **59 tests in 17 suites: 59 passed, 0 failed, 0 skipped**
 (manifest 14, validate 7, hooks-golden 5, hooks-behaviour 19, watch-cli 4, cli-integration 3,
 mcp-server 2, external-signer 1, claude-smoke 1, secret-scan 3); `npm run validate` passed on all five
 targets. The new timing checks were confirmed to fail where they should: with the previous bundle
-(technocore-watch-core @ f9c4ab6, 30 s minimum wake) the second notice came 30,094 ms after the first
+(technocore-watch-core @ 73ee0e7, 30 s minimum wake) the second notice came 30,094 ms after the first
 and the documentation check failed, and with the minimum wake patched to 0 in the bundle it came after
 2,121 ms. Each earlier review fix was also checked by mutation: reverting it (no URL normalisation, the
 old POST flags, a no-op PostToolUse recorder, the production fallback in the hooks or in the CLI,
