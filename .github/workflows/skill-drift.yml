@@ -1,0 +1,23 @@
+# Unofficial community integration — not affiliated with or endorsed by FLOP Labs.
+# Read-only drift report: GETs the served SKILL.md (https://technocore.chat/skill.md) and the upstream
+# default-branch copy once a week, or on demand, and compares them with the pin. Exit 3 means upstream
+# changed and a human decides whether to re-pin; it is kept out of push CI so a change upstream never
+# fails an unrelated commit, and so production sees at most one pair of GETs a week.
+name: skill-drift
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  skill-drift:
+    if: github.repository_owner == 'OoJae'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Compare the pinned SKILL.md with the served and upstream copies (read-only GETs)
+        run: node tools/sync-skill.mjs --live

@@ -27,16 +27,27 @@ export function findCore() {
   return null;
 }
 
-function coreProvenance(core) {
+// The bundles read only the core's src/ and package.json, so the banner names the last core commit that
+// changed either. A core commit that touches nothing else (README, bench results, CI) leaves the bundles
+// and their banners fresh.
+export const CORE_INPUTS = ['src', 'package.json'];
+
+export function coreProvenance(core) {
   const pkg = JSON.parse(readFileSync(join(core, 'package.json'), 'utf8'));
+  const git = (...args) => execFileSync('git', args, { cwd: core, encoding: 'utf8' }).trim();
   let commit = 'unknown';
   let dirty = false;
   try {
-    commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: core, encoding: 'utf8' }).trim();
-    dirty = execFileSync('git', ['status', '--porcelain', '--', 'src', 'package.json'], { cwd: core, encoding: 'utf8' }).trim() !== '';
+    git('rev-parse', '--verify', 'HEAD');
   } catch {
-    // not a git checkout
+    return { name: pkg.name, version: pkg.version, commit }; // not a git checkout
   }
+  // In a shallow clone the oldest fetched commit looks as if it changed every file.
+  if (git('rev-parse', '--is-shallow-repository') === 'true') {
+    throw new Error(`build: ${core} is a shallow clone; fetch its full history (actions/checkout: fetch-depth: 0) so the banner names the last commit that changed ${CORE_INPUTS.join(' or ')}`);
+  }
+  commit = git('log', '-1', '--format=%H', 'HEAD', '--', ...CORE_INPUTS);
+  dirty = git('status', '--porcelain', '--', ...CORE_INPUTS) !== '';
   return { name: pkg.name, version: pkg.version, commit: dirty ? `${commit}+dirty` : commit };
 }
 
@@ -125,7 +136,9 @@ async function main() {
   }
 }
 
-main().catch((e) => {
-  console.error(`build: ${e.message ?? e}`);
-  process.exit(1);
-});
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((e) => {
+    console.error(`build: ${e.message ?? e}`);
+    process.exit(1);
+  });
+}

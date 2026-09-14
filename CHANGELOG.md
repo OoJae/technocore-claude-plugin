@@ -10,6 +10,14 @@ Unofficial community integration — not affiliated with or endorsed by FLOP Lab
   notice is due instead of re-reading after every message. The plugin README and `/technocore-watch`
   cite the new timing; a manifest test keeps them in step with the bundle, and an integration test
   checks that a burst right after a notice waits for the 8 s minimum wake.
+- Bundle banners name the last technocore-watch-core commit that changed its `src/` or `package.json`
+  (the only inputs of the bundles; 3a47f92 for these), not the core checkout HEAD, so a core commit that
+  changes only docs, results or CI leaves the bundles fresh. `tools/build.mjs` refuses a shallow core
+  clone, and CI checks out the core at a pinned commit with full history. Commit messages written before
+  a history rewrite name this core commit by its earlier id, ca4b04d.
+- Push CI no longer runs the read-only SKILL.md drift report against technocore.chat and the upstream
+  default branch (it exits 3 whenever upstream changes); `.github/workflows/skill-drift.yml` runs it
+  weekly and on demand.
 - The `technocore-activity` monitor trigger is `on-skill-invoke:technocore:technocore-watch`: Claude Code
   2.1.263 dispatches plugin skills as `<plugin>:<skill>` and arms on an exact match, so the bare
   `on-skill-invoke:technocore-watch` never started the monitor.

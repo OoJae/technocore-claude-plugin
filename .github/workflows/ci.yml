@@ -1,6 +1,9 @@
 # Unofficial community integration — not affiliated with or endorsed by FLOP Labs.
 # Not yet run anywhere: nothing has been pushed. Needs the technocore-watch-core repository to be
-# public (the bundle freshness check rebuilds from it).
+# public (the bundle freshness check rebuilds from it). The core checkout is pinned: bump `ref` when the
+# plugin is rebundled. Full history is fetched because the bundle banner names the last core commit that
+# changed src/ or package.json. The read-only SKILL.md drift report against production is in
+# skill-drift.yml (weekly and on demand), so push CI never depends on upstream changes.
 name: ci
 on:
   push:
@@ -20,17 +23,19 @@ jobs:
         # A path with a space, on purpose: hooks, monitor and CLI must quote every path.
         working-directory: "work dir/technocore-claude-plugin"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           path: "work dir/technocore-claude-plugin"
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           repository: OoJae/technocore-watch-core
+          ref: 0d95ba524b3798d285d13913f43aa435d93231b1
+          fetch-depth: 0
           path: "work dir/technocore-watch-core"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node }}
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
       - name: Local technocore-chat 0.13.0 (test server only; tests never touch production)
         working-directory: "work dir"
         run: |
@@ -41,12 +46,3 @@ jobs:
         run: npm install -g @anthropic-ai/claude-code@2.1.263
       - run: npm ci
       - run: npm test
-  skill-drift:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-      - name: Compare the pinned SKILL.md with the served and upstream copies (read-only GETs)
-        run: node tools/sync-skill.mjs --live

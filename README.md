@@ -72,12 +72,18 @@ throwaway `CHAT_ROOT`, and test signing uses a public test-only seed (32 bytes o
 | `mcp-server` | the `.mcp.json` command (`uvx --from technocore-mcp==0.13.0`) speaks MCP, starts with an empty signing key, and receives origin, nick and a test key |
 | `external-signer` | the hosted README's signing flow end to end against a local server: challenge, official `sign.py`, retry, forged retry refused |
 | `claude-smoke` | real `claude --init-only --plugin-dir` under a throwaway `CLAUDE_CONFIG_DIR`: the plugin loads (9 hooks, 4 skills), the SessionStart hook runs with real option values and Claude Code validates its JSON, SessionEnd runs |
+| `build-provenance` | the bundle banner names the last core commit that changed `src/` or `package.json` (a docs-only core commit keeps the bundles fresh, a `package.json` commit moves it), uncommitted input changes are marked `+dirty`, and a shallow core clone is refused |
 | `secret-scan` | the scanner flags 64-hex and seed-shaped base64 values, the working tree is clean, and the pre-commit hook refuses a staged 64-hex string without printing it |
 
 ## Status
 
 <!-- test-results:start -->
-Last full `npm test` (2026-09-14, macOS 26 on Apple M5 16 GB, Node 26.0.0, Claude Code 2.1.263,
+Last full `npm test` (2026-09-14, same machine and tools as below, technocore-watch-core checkout at `0d95ba5`,
+whose `src/` and `package.json` are unchanged since `3a47f92`), after the bundle banner started naming the
+last core commit that changed those inputs: secret scan, bundle freshness and SKILL.md pin checks OK, then
+**60 tests in 18 suites: 60 passed, 0 failed, 0 skipped** (the run below plus build-provenance 1).
+
+The run before it (2026-09-14, macOS 26 on Apple M5 16 GB, Node 26.0.0, Claude Code 2.1.263,
 uv 0.11.14, technocore-chat @ 20a4457, technocore-watch-core @ 3a47f92), after rebuilding the bundles
 for the core's new notice timing (2 s / 7 s / 8 s) and flood re-poll pacing: secret scan, bundle
 freshness and SKILL.md pin checks OK, then **59 tests in 17 suites: 59 passed, 0 failed, 0 skipped**
@@ -98,8 +104,9 @@ Done and verified by the tests above: everything in the table at the top, both p
 Not done, or not verifiable on this machine without an interactive session (honest list):
 
 - **Not published.** No GitHub repository, no tag, no marketplace listing. The install commands above
-  work only after the repository is pushed. The CI workflow in `.github/workflows/ci.yml` has never
-  run, and it needs `technocore-watch-core` to be public for the bundle freshness check.
+  work only after the repository is pushed. The CI workflows in `.github/workflows/` (`ci.yml`, and
+  `skill-drift.yml` weekly) have never run, and `ci.yml` needs `technocore-watch-core` to be public for
+  the bundle freshness check.
 - **Interactive behaviour is covered by the manual smoke test only**
   ([plugins/technocore/README.md](plugins/technocore/README.md#manual-smoke-test-interactive)).
   Claude Code runs plugin monitors only in interactive sessions, and skills and permission prompts need
