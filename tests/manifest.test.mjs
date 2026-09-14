@@ -143,6 +143,26 @@ describe('plugin: technocore', () => {
     assert.match(admin.body, /never starts the watcher's `technocore-activity` monitor/);
   });
 
+  it('the READMEs and /technocore-watch cite the coalescing defaults bundled from technocore-watch-core', () => {
+    // The monitor passes no timing flags, so its notice timing is the core's DEFAULT_COALESCE as bundled.
+    const bundle = read(`${P}/scripts/technocore-watch.mjs`);
+    const d = /\bvar DEFAULT_COALESCE = \{ quietMs: ([0-9.e]+), maxDelayMs: ([0-9.e]+), minWakeIntervalMs: ([0-9.e]+) \};/.exec(bundle);
+    assert.ok(d, 'DEFAULT_COALESCE found in the bundled CLI');
+    const [quiet, maxDelay, minWake] = d.slice(1).map((x) => Number(x) / 1000);
+    assert.ok([quiet, maxDelay, minWake].every((s) => Number.isInteger(s) && s > 0), `whole seconds: ${d[0]}`);
+    const monitor = json(`${P}/monitors/monitors.json`)[0].command;
+    assert.doesNotMatch(monitor, /--(quiet|max-delay|min-wake|flood-pacing|repoll)/i, 'the monitor uses the core defaults');
+    const pluginReadme = read(`${P}/README.md`).replace(/\s+/g, ' ');
+    for (const s of [
+      `A burst flushes after ${quiet} s of quiet (at most ${maxDelay} s after it started)`,
+      `a scope gets at most one notice every ${minWake} s`,
+      `a flood is one line per ${Math.max(maxDelay, minWake)} s`,
+      `held by the ${maxDelay} s / ${minWake} s limits`,
+    ]) assert.ok(pluginReadme.includes(s), `plugins/technocore/README.md says: ${s}`);
+    const watch = read(`${P}/skills/technocore-watch/SKILL.md`).replace(/\s+/g, ' ');
+    assert.ok(watch.includes(`(at most one every ${minWake} seconds per scope)`), 'the /technocore-watch skill cites the minimum wake interval');
+  });
+
   it('hooks.json: events, exec form, timeouts, matchers', () => {
     const h = hooksConfig();
     assert.deepEqual(Object.keys(h).sort(), ['PostToolUse', 'PostToolUseFailure', 'PreToolUse', 'SessionEnd', 'SessionStart', 'UserPromptSubmit']);

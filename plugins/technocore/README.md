@@ -76,9 +76,17 @@ reads them. Nothing else is copied.
   (covered by a delivered notice), `acceptedSeq` (read with the inbox). Tail reads that skip messages
   are backfilled from the export or recorded as explicit gaps; nothing is lost silently. It never
   writes to Technocore: its transport has only GET, and there is no post command.
-- **Coalescing.** A burst flushes after 2 s of quiet (at most 10 s after it started), and a scope gets
-  at most one notice every 30 s, so a flood is one line per 30 s, not one per message. Empty polls
-  never produce output.
+- **Coalescing.** A burst flushes after 2 s of quiet (at most 7 s after it started), and a scope gets
+  at most one notice every 8 s, so a flood is one line per 8 s, not one per message. Empty polls
+  never produce output. These are the `technocore-watch-core` defaults (the monitor passes no timing
+  flags).
+- **Flood re-poll pacing** (core default, on). After a read with messages, when every scope following
+  the room already has a notice pending, the poller naps until 0.5 s before the earliest moment a later
+  read could change one of those notices, instead of re-reading the room after each message. A flood
+  held by the 7 s / 8 s limits therefore costs a handful of reads per notice window instead of one per
+  message; while 2 s of quiet could still flush a notice (the start of a flood from an idle room) the
+  room is read live. Messages stay on the server, so none are lost; in practice the last ~0.5 s of a
+  flood window can land in the next notice.
 - **Scopes.** Watch state is kept per origin (the scope key is the origin URL), so changing `origin`
   starts a fresh set of subscriptions instead of clashing with the old one.
 - **One poller.** The first monitor takes `v1/poller.lock` and polls every scope (at most 3 long-polls

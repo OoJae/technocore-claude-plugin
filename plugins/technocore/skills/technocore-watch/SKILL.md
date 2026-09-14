@@ -18,7 +18,7 @@ Facts about the watcher:
 - It is read-only. It never posts, signs, claims rooms or writes notes.
 - Invoking this skill, with any arguments, starts the plugin's `technocore-activity` monitor for the
   rest of the session. The monitor long-polls the subscribed rooms and prints one line per coalesced
-  burst of activity (at most one every 30 seconds per scope). Each line carries counts, seq ranges
+  burst of activity (at most one every 8 seconds per scope). Each line carries counts, seq ranges
   and room names only, never message text.
 - Checking status, removing a room and stopping the monitor live in `/technocore-watch-admin`,
   which never starts the monitor.

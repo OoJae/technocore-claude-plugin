@@ -45,8 +45,8 @@ after(async () => {
 });
 
 /** Run a skill command line the way the Bash tool would: sh -c, plugin bin/ on PATH. */
-function skillCommand(line) {
-  const command = line.split('${CLAUDE_PLUGIN_DATA}').join(data);
+function skillCommand(line, dataDir = data) {
+  const command = line.split('${CLAUDE_PLUGIN_DATA}').join(dataDir);
   const env = cleanEnv({ PATH: `${join(root, 'bin')}:${process.env.PATH}` });
   return runProcess('sh', ['-c', command], { env, timeoutMs: 30_000 });
 }
@@ -152,7 +152,9 @@ describe('technocore plugin against a local technocore-chat', { timeout: 240_000
     await waitFor(() => noticeLines(b).length >= 1, 10_000);
     await sleep(3000);
     assert.equal(noticeLines(a).length, 2, 'exactly one more line for the second burst');
-    assert.ok(gap >= 25_000, `second notice respected the 30 s minimum wake interval (${gap} ms after the first was seen)`);
+    // 8 s after the first notice at the earliest (minus the time it took to see the first line); the test
+    // below posts right after a notice, so there the minimum wake is what holds the second one back.
+    assert.ok(gap >= 7_000, `second notice respected the 8 s minimum wake interval (${gap} ms after the first was seen)`);
     const second = roomsOf(noticeLines(a)[1]);
     assert.deepEqual(second.map((r) => [r.room, r.new, r.seq, r.signed_senders]), [['it-room', 3, [10, 12], 1]]);
     assert.deepEqual(noticeLines(b), [noticeLines(a)[1]], 'the follower printed the same single line');
@@ -230,6 +232,43 @@ describe('technocore plugin against a local technocore-chat', { timeout: 240_000
     const scopes = (await readdir(join(data, 'v1'))).filter((n) => /^[0-9a-f]{16}$/.test(n));
     assert.ok(scopes.length >= 1);
     for (const sc of scopes) assert.equal(JSON.parse(await readFile(join(data, 'v1', sc, 'state.json'), 'utf8')).origin, server.origin);
+  });
+
+  it('the monitor holds a burst that follows a notice for the 8 s minimum wake interval, not the 2 s quiet', async () => {
+    // The monitor command passes no timing flags, so this is technocore-watch-core's DEFAULT_COALESCE
+    // (quietMs 2 s, maxDelayMs 7 s, minWakeIntervalMs 8 s) as bundled; the READMEs and the
+    // /technocore-watch skill cite it.
+    const wdata = join(tmp.path, 'wake data');
+    const wctx = { root, data: wdata, options: { origin: server.origin, watch_rooms: ['wake-room'], inject_on_prompt: true } };
+    assert.equal(context(await runEvent('SessionStart', 'startup', { session_id: 'wake', source: 'startup' }, wctx)), null);
+    const started = await skillCommand('technocore-watch start --data "${CLAUDE_PLUGIN_DATA}"', wdata);
+    assert.equal(started.code, 0, started.stderr);
+    assert.match(started.stdout, /subscriptions 1 unread 0/);
+
+    const m = spawnMonitor('technocore-activity', { root, data: wdata });
+    monitors.push(m);
+    await waitFor(() => existsSync(join(wdata, 'v1', 'poller.lock')), 15_000);
+    await sleep(1500); // let the long-poll settle
+
+    for (const t of ['wake 1', 'wake 2', 'wake 3']) await post(server.origin, 'wake-room', t);
+    await waitFor(() => noticeLines(m).length >= 1, 25_000);
+    const firstSeen = Date.now();
+    // Straight after the first notice: 2 s of quiet would flush this burst about 2 s from now.
+    for (const t of ['wake 4', 'wake 5']) await post(server.origin, 'wake-room', t);
+    await waitFor(() => noticeLines(m).length >= 2, 45_000);
+    const gap = Date.now() - firstSeen;
+    await sleep(1500);
+    assert.equal(noticeLines(m).length, 2, 'one line per burst');
+    assert.deepEqual(roomsOf(noticeLines(m)[0]).map((r) => [r.room, r.new, r.seq]), [['wake-room', 3, [1, 3]]]);
+    assert.deepEqual(roomsOf(noticeLines(m)[1]).map((r) => [r.room, r.new, r.seq]), [['wake-room', 2, [4, 5]]]);
+    assert.ok(gap >= 7_000, `the second notice waited for the 8 s minimum wake interval, not 2 s of quiet (${gap} ms after the first was seen)`);
+    assert.ok(gap <= 12_000, `the second notice came about 8 s after the first, not after the former 30 s minimum wake (${gap} ms)`);
+    assert.equal(m.state.err, '');
+
+    process.kill(-m.p.pid, 'SIGTERM');
+    const ex = await m.exited;
+    assert.ok(ex.code === 0 || ex.signal === 'SIGTERM', `monitor stopped (${JSON.stringify(ex)})`);
+    await waitFor(() => !existsSync(join(wdata, 'v1', 'poller.lock')), 5000);
   });
 
   it('write-guard spellings the server really accepts (encoded, dot segments, -sd, trailing slash) all ask', async () => {

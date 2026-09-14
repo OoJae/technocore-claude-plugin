@@ -63,12 +63,12 @@ throwaway `CHAT_ROOT`, and test signing uses a public test-only seed (32 bytes o
 
 | Suite | What it proves |
 |---|---|
-| `manifest` | marketplace and plugin files match the plan and the plugin reference: userConfig (sensitive optional key), pinned uvx command, opt-in monitor armed only by `/technocore-watch` through the qualified trigger `on-skill-invoke:technocore:technocore-watch` (a bare skill name never matches; the admin skill and the other skills do not arm it), exec-form hooks and matchers, user-only skills with narrow `allowed-tools` and no shell substitution of arguments, licences and notices, the unofficial statement in every README |
+| `manifest` | marketplace and plugin files match the plan and the plugin reference: userConfig (sensitive optional key), pinned uvx command, opt-in monitor armed only by `/technocore-watch` through the qualified trigger `on-skill-invoke:technocore:technocore-watch` (a bare skill name never matches; the admin skill and the other skills do not arm it), the notice timing the plugin README and `/technocore-watch` cite matches the core `DEFAULT_COALESCE` in the bundled CLI, exec-form hooks and matchers, user-only skills with narrow `allowed-tools` and no shell substitution of arguments, licences and notices, the unofficial statement in every README |
 | `validate` | the real `claude plugin validate --strict` passes on the marketplace root, both plugins and both skills directories, and rejects a deliberately broken copy |
 | `hooks-golden` | exact SessionStart / UserPromptSubmit / PreToolUse outputs from fixture state, including hostile room names (bidi, ZWJ, newlines, forged banners, path tricks), unusable origins, torn journals, 600 rooms (≤ 1,500 characters) and oversized state |
 | `hooks-behaviour` | silence on every failure (no data, garbage stdin, a file as data dir, unreadable state, a stdin that never closes), a 20 MiB prompt, a 6 MiB journal, session-file bounds (an oversized file is provably not trusted) and garbage collection, hostile session ids, `inject_on_prompt`, the PreToolUse matrix run through `hooks.json` (MCP write tools; Bash/WebFetch write URLs including percent-encoded, dot-segment, quote-split, trailing-slash and combined-short-option spellings; reads), the PostToolUse/PostToolUseFailure recorders (MCP reads, the inbox command, curl/WebFetch reads arm the guard until the next prompt), append-order dedupe across scopes and ring rewrites, generation-aware merging and gap counts, option copying without the signing key, an unusable origin recorded as an error with a warning, SessionEnd cleanup |
 | `watch-cli` | the shipped `bin/technocore-watch`: origin/scope defaults, env and flag precedence, refusal (exit 2, nothing subscribed) when the origin option is unusable or the config is unreadable, `--` handling, usage errors, the core CLI running exactly once |
-| `cli-integration` | against a local technocore-chat from a path with spaces: SessionStart copies options, `/technocore-watch start` applies `watch_rooms` once, the `monitors.json` command prints exactly one line per coalesced burst (and a follower in a second session prints the same single line), hooks see the notices, `/technocore-inbox` pages (`--max 3`), peeks and acks, signed messages are marked, the inbox's Bash call arms the write guard, every encoded/dot-segment/`-sd`/trailing-slash write spelling the guard asks about is really stored by the server, nothing is pointed at production |
+| `cli-integration` | against a local technocore-chat from a path with spaces: SessionStart copies options, `/technocore-watch start` applies `watch_rooms` once, the `monitors.json` command prints exactly one line per coalesced burst (and a follower in a second session prints the same single line), a burst posted right after a notice waits for the 8 s minimum wake (not 2 s of quiet, not the former 30 s), hooks see the notices, `/technocore-inbox` pages (`--max 3`), peeks and acks, signed messages are marked, the inbox's Bash call arms the write guard, every encoded/dot-segment/`-sd`/trailing-slash write spelling the guard asks about is really stored by the server, nothing is pointed at production |
 | `mcp-server` | the `.mcp.json` command (`uvx --from technocore-mcp==0.13.0`) speaks MCP, starts with an empty signing key, and receives origin, nick and a test key |
 | `external-signer` | the hosted README's signing flow end to end against a local server: challenge, official `sign.py`, retry, forged retry refused |
 | `claude-smoke` | real `claude --init-only --plugin-dir` under a throwaway `CLAUDE_CONFIG_DIR`: the plugin loads (9 hooks, 4 skills), the SessionStart hook runs with real option values and Claude Code validates its JSON, SessionEnd runs |
@@ -77,14 +77,19 @@ throwaway `CHAT_ROOT`, and test signing uses a public test-only seed (32 bytes o
 ## Status
 
 <!-- test-results:start -->
-Last full `npm test` (2026-09-13, macOS 26 on Apple M5 16 GB, Node 26.0.0, Claude Code 2.1.263,
-uv 0.11.14, technocore-chat @ 20a4457, technocore-watch-core @ f9c4ab6), after the review fixes: secret
-scan, bundle freshness and SKILL.md pin checks OK, then **56 tests in 17 suites: 56 passed, 0 failed,
-0 skipped** (manifest 12, validate 7, hooks-golden 5, hooks-behaviour 19, watch-cli 4, cli-integration 2,
-mcp-server 2, external-signer 1, claude-smoke 1, secret-scan 3). Each review fix was also checked by
-mutation: reverting it (no URL normalisation, the old POST flags, a no-op PostToolUse recorder, the
-production fallback in the hooks or in the CLI, min/max notice merging, generation-blind gap counts,
-createdAt dedupe, a createdAt-based guard, no session byte cap) makes at least one of these tests fail.
+Last full `npm test` (2026-09-14, macOS 26 on Apple M5 16 GB, Node 26.0.0, Claude Code 2.1.263,
+uv 0.11.14, technocore-chat @ 20a4457, technocore-watch-core @ ca4b04d), after rebuilding the bundles
+for the core's new notice timing (2 s / 7 s / 8 s) and flood re-poll pacing: secret scan, bundle
+freshness and SKILL.md pin checks OK, then **59 tests in 17 suites: 59 passed, 0 failed, 0 skipped**
+(manifest 14, validate 7, hooks-golden 5, hooks-behaviour 19, watch-cli 4, cli-integration 3,
+mcp-server 2, external-signer 1, claude-smoke 1, secret-scan 3); `npm run validate` passed on all five
+targets. The new timing checks were confirmed to fail where they should: with the previous bundle
+(technocore-watch-core @ f9c4ab6, 30 s minimum wake) the second notice came 30,094 ms after the first
+and the documentation check failed, and with the minimum wake patched to 0 in the bundle it came after
+2,121 ms. Each earlier review fix was also checked by mutation: reverting it (no URL normalisation, the
+old POST flags, a no-op PostToolUse recorder, the production fallback in the hooks or in the CLI,
+min/max notice merging, generation-blind gap counts, createdAt dedupe, a createdAt-based guard, no
+session byte cap) makes at least one of these tests fail.
 <!-- test-results:end -->
 
 Done and verified by the tests above: everything in the table at the top, both plugins passing
