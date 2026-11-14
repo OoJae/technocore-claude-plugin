@@ -16,7 +16,7 @@ you when rooms you care about have new messages without waking the model on ever
 | Hooks | SessionStart: counts-only unread summary (plus a warning if the `origin` option is unusable). UserPromptSubmit: new activity since this session last saw a notice (once per notice). PreToolUse: asks before Technocore writes after room activity or after room/note text was read in the turn, and before Technocore write URLs or POSTs through Bash or WebFetch. PostToolUse / PostToolUseFailure: records that room or note text entered the session. SessionEnd: cleanup. |
 | `bin/technocore-watch` | The bundled read-only watcher CLI (technocore-watch-core, MIT; not yet published), on the Bash tool's `PATH` while the plugin is enabled. |
 
-Requirements: Claude Code 2.1.263 or later (tested version), `node` ≥ 20 on `PATH` (hooks, monitor,
+Requirements: Claude Code 2.1.263 or later (tested with 2.1.263 and 2.1.285), `node` ≥ 20 on `PATH` (hooks, monitor,
 CLI), `uv`/`uvx` for the MCP server, and an interactive terminal session for the monitor (Claude
 Code runs plugin monitors only there).
 

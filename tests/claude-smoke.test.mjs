@@ -2,7 +2,9 @@
 // loads the plugin, runs SessionStart (and SessionEnd) hooks, connects MCP servers and exits without
 // a conversation (no model call, no login needed). Everything runs under a throwaway
 // CLAUDE_CONFIG_DIR, so the user's real Claude Code configuration is never read or changed and
-// nothing is installed. The debug-log phrases asserted here were observed with Claude Code 2.1.263.
+// nothing is installed. The debug-log phrases asserted here were observed with Claude Code 2.1.263
+// and 2.1.285. From 2.1.285 the plugin totals also count Claude Code's own built-in plugins (3 plugins
+// where 2.1.263 said 1), so those two lines are matched by shape; the 9 hooks are all this plugin's.
 //
 // Requirements: `claude` on PATH. Claude Code may also start the plugin's MCP server (uvx); it is
 // pointed at a closed local port and makes no requests.
@@ -47,8 +49,8 @@ describe('claude --init-only --plugin-dir (real Claude Code, isolated config)', 
     const text = await readFile(log, 'utf8');
     const has = (s) => assert.ok(text.includes(s), `debug log mentions: ${s}`);
     has('Loaded inline plugin from path: technocore');
-    has('Found 1 plugins (1 enabled, 0 disabled)');
-    has('Registered 9 hooks from 1 plugins');
+    assert.match(text, /Found (\d+) plugins \(\1 enabled, 0 disabled\)/, 'every plugin found is enabled');
+    assert.match(text, /Registered 9 hooks from \d+ plugins/, 'the 9 hooks of this plugin are registered');
     has('Loaded 4 skills from plugin technocore');
     has('Successfully parsed and validated hook JSON output');
     assert.match(text, /Hook SessionStart \(node \$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/hooks\.mjs session-start\) provided additionalContext \(\d+ chars\)/);

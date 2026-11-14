@@ -78,7 +78,14 @@ throwaway `CHAT_ROOT`, and test signing uses a public test-only seed (32 bytes o
 ## Status
 
 <!-- test-results:start -->
-Last full `npm test` (2026-09-14, same machine and tools as below, technocore-watch-core checkout at `0d95ba5`,
+Re-run on 2026-11-14 (same machine, Node 26.0.0, uv 0.11.14, Claude Code 2.1.285): **60 tests in 18
+suites: 60 passed, 0 failed, 0 skipped**, with the local test server at the pinned technocore-chat
+`20a4457` and again at upstream `main` `3cd868e` (0.14.5; the MCP server stays at the pinned technocore-mcp
+0.13.0). Before it, `claude-smoke` failed on its exact log wording: Claude Code 2.1.285 counts its own
+built-in plugins in the totals (`Found 3 plugins`, `Registered 9 hooks from 3 plugins`) where 2.1.263 said
+1. The test now matches those two lines by shape; the plugin itself did not change.
+
+The full `npm test` before that (2026-09-14, same machine and tools as below, technocore-watch-core checkout at `0d95ba5`,
 whose `src/` and `package.json` are unchanged since `3a47f92`), after the bundle banner started naming the
 last core commit that changed those inputs: secret scan, bundle freshness and SKILL.md pin checks OK, then
 **60 tests in 18 suites: 60 passed, 0 failed, 0 skipped** (the run below plus build-provenance 1).
